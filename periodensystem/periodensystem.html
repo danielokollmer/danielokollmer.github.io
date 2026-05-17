@@ -500,7 +500,7 @@ Changelog:
   }
 </style>
 
-<div class="app">
+<main class="app" id="main">
   <div class="header">
     <div>
       <h1 id="title">Interaktives Periodensystem</h1>
@@ -524,7 +524,7 @@ Changelog:
   <div class="toolbar">
     <input type="text" id="search" data-i18n-ph="search_ph" placeholder="Suchen (Symbol, Name, Nr.)..." />
     <div class="toolbar-group">
-      <label data-i18n="state">Aggregat:</label>
+      <label for="stateFilter" data-i18n="state">Aggregat:</label>
       <select id="stateFilter">
         <option value="all" data-i18n="all">Alle</option>
         <option value="solid" data-i18n="solid">Fest</option>
@@ -533,7 +533,7 @@ Changelog:
       </select>
     </div>
     <div class="toolbar-group">
-      <label data-i18n="occ_label">Vorkommen:</label>
+      <label for="occFilter" data-i18n="occ_label">Vorkommen:</label>
       <select id="occFilter">
         <option value="all" data-i18n="all">Alle</option>
         <option value="natural" data-i18n="occ_natural">Natürlich</option>
@@ -541,7 +541,7 @@ Changelog:
       </select>
     </div>
     <div class="toolbar-group">
-      <label data-i18n="trend">Trend:</label>
+      <label for="trendFilter" data-i18n="trend">Trend:</label>
       <select id="trendFilter">
         <option value="none" data-i18n="trend_none">Kategorie</option>
         <option value="atomicMass" data-i18n="trend_mass">Atommasse</option>
@@ -585,7 +585,7 @@ Changelog:
     &nbsp;·&nbsp;
     <span>v2.2</span>
   </div>
-</div>
+</main>
 
 <!-- Element detail modal -->
 <div class="modal-overlay" id="modal">
