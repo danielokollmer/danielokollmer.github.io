@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Datenschutzerklärung – Interaktives Periodensystem</title>
+<style>
+  :root {
+    --bg:#0f1419; --bg-elev:#1a2128; --bg-card:#232c36;
+    --border:#2f3a45; --text:#e6edf3; --text-dim:#8b96a3;
+    --accent:#4a9eff; --green:#69db7c;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+    font-size:15px; line-height:1.7; }
+  .page { max-width:700px; margin:0 auto; padding:40px 24px 80px; }
+  .header { display:flex; justify-content:space-between; align-items:flex-start;
+    gap:16px; margin-bottom:36px; padding-bottom:20px;
+    border-bottom:1px solid var(--border); flex-wrap:wrap; }
+  .header h1 { font-size:22px; font-weight:700; }
+  .header p  { font-size:13px; color:var(--text-dim); margin-top:4px; }
+  button { background:var(--bg-card); color:var(--text); border:1px solid var(--border);
+    padding:6px 14px; border-radius:6px; font-size:13px; cursor:pointer;
+    font-family:inherit; transition:border-color .15s; }
+  button:hover { border-color:var(--accent); }
+
+  .green-box { background:rgba(105,219,124,.08); border:1px solid rgba(105,219,124,.3);
+    border-radius:8px; padding:14px 18px; margin-bottom:28px; font-size:13px;
+    color:var(--green); }
+  .green-box strong { display:block; margin-bottom:4px; }
+
+  h2 { font-size:14px; font-weight:700; text-transform:uppercase;
+    letter-spacing:0.5px; color:var(--text-dim); margin:28px 0 10px; }
+  .block { background:var(--bg-elev); border:1px solid var(--border);
+    border-radius:8px; padding:16px 20px; margin-bottom:14px; }
+  .block p { font-size:14px; line-height:1.7; }
+  .block p + p { margin-top:8px; }
+  .dimtext { color:var(--text-dim); font-size:13px; margin-top:6px; }
+  .placeholder { color:var(--accent); font-weight:600; }
+
+  .check-list { list-style:none; margin-top:8px; }
+  .check-list li { font-size:14px; padding:4px 0;
+    display:flex; align-items:flex-start; gap:8px; }
+  .check-list li::before { content:"✓"; color:var(--green); font-weight:700;
+    flex-shrink:0; margin-top:1px; }
+
+  a { color:var(--accent); }
+  .back-link { display:inline-flex; align-items:center; gap:6px;
+    color:var(--accent); font-size:13px; text-decoration:none; margin-top:32px; }
+  .back-link:hover { text-decoration:underline; }
+  footer { margin-top:40px; padding-top:16px; border-top:1px solid var(--border);
+    font-size:12px; color:var(--text-dim); }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="header">
+    <div>
+      <h1 id="h1">Datenschutzerklärung</h1>
+      <p id="sub">Gemäß DSGVO / Art. 13 DSGVO</p>
+    </div>
+    <button onclick="toggleLang()" id="langBtn">English</button>
+  </div>
+
+  <div class="green-box" id="green-box">
+    <strong id="green-title">✓ Diese App ist datenschutzfreundlich</strong>
+    <span id="green-text">Das Interaktive Periodensystem verarbeitet keine personenbezogenen Daten. Es werden keine Cookies gesetzt, kein Tracking durchgeführt und keine Daten an Server übertragen.</span>
+  </div>
+
+  <h2 id="sec-verantwortlich">Verantwortlicher</h2>
+  <div class="block">
+    <p>
+      Daniel Kollmer<br>
+      Baumgartnerstrasse 21<br>
+      DE-79540 Lörrach<br>
+      <span id="lbl-email">E-Mail:</span> <a href="mailto:danielokollmer@gmail.com">danielokollmer@gmail.com</a>
+    </p>
+    <p class="dimtext"><a href="impressum.html" id="lnk-impressum">→ Vollständiges Impressum</a></p>
+  </div>
+
+  <h2 id="sec-erhobene">Erhobene Daten</h2>
+  <div class="block">
+    <p id="erhobene-text">Diese Anwendung erhebt und speichert <strong>keine personenbezogenen Daten</strong>. Im Einzelnen gilt:</p>
+    <ul class="check-list" id="check-list">
+      <li>Keine Registrierung, kein Nutzerkonto, kein Login</li>
+      <li>Keine Cookies</li>
+      <li>Kein Tracking, kein Analytics, keine Werbung</li>
+      <li>Keine Übertragung von Daten an externe Server</li>
+      <li>Quiz-Ergebnisse und Lernfortschritt werden nur im Arbeitsspeicher des Browsers gespeichert und bei Schließen der App automatisch gelöscht</li>
+      <li>Keine dauerhafte lokale Speicherung (kein localStorage, kein sessionStorage)</li>
+    </ul>
+  </div>
+
+  <h2 id="sec-hosting">Hosting – GitHub Pages</h2>
+  <div class="block">
+    <p id="hosting-text">Die Anwendung wird über <strong>GitHub Pages</strong> gehostet (GitHub, Inc., 88 Colin P. Kelly Jr. Street, San Francisco, CA 94107, USA). Beim Abruf der Seite werden durch GitHub automatisch Server-Log-Dateien erstellt, die folgende Daten enthalten können: IP-Adresse des anfragenden Rechners, Datum und Uhrzeit des Abrufs, Name und URL der abgerufenen Datei, Browsertyp und -version, Betriebssystem.</p>
+    <p id="hosting-text2">Diese Daten werden von GitHub gemäß deren Datenschutzrichtlinie verarbeitet und liegen nicht in meiner Kontrolle. Weitere Informationen: <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement" target="_blank" rel="noopener">GitHub Datenschutzerklärung</a></p>
+  </div>
+
+  <h2 id="sec-stores">App Stores</h2>
+  <div class="block">
+    <p id="stores-text">Wenn du diese Anwendung über den Microsoft Store oder Google Play Store installierst, gelten zusätzlich die Datenschutzbestimmungen dieser Plattformen:</p>
+    <ul class="check-list" id="stores-list">
+      <li><a href="https://privacy.microsoft.com/de-de/privacystatement" target="_blank" rel="noopener">Microsoft Datenschutzbestimmungen</a></li>
+      <li><a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google Datenschutzbestimmungen</a></li>
+    </ul>
+    <p class="dimtext" id="stores-note">Die App selbst überträgt auch nach der Store-Installation keinerlei Daten.</p>
+  </div>
+
+  <h2 id="sec-rechte">Deine Rechte</h2>
+  <div class="block">
+    <p id="rechte-text">Da keine personenbezogenen Daten verarbeitet werden, entfallen die typischen DSGVO-Rechte (Auskunft, Berichtigung, Löschung etc.) in der Praxis. Für Fragen zum Datenschutz stehe ich unter der o. g. E-Mail-Adresse zur Verfügung.</p>
+  </div>
+
+  <h2 id="sec-aktuell">Aktualität</h2>
+  <div class="block">
+    <p id="aktuell-text">Diese Datenschutzerklärung ist aktuell gültig und hat den Stand: <strong id="datum">Mai 2026</strong>. Ich behalte mir vor, diese Erklärung bei Änderungen der Anwendung oder der Rechtslage anzupassen.</p>
+  </div>
+
+  <a href="periodensystem.html" class="back-link" id="back-link">← Zurück zum Periodensystem</a>
+
+  <footer>
+    <a href="impressum.html" style="color:var(--text-dim);text-decoration:none;" id="footer-imp">Impressum</a>
+    &nbsp;·&nbsp;
+    <a href="hilfe.html" style="color:var(--text-dim);text-decoration:none;" id="footer-hilfe">Hilfe</a>
+    &nbsp;·&nbsp;
+    <span id="footer-ver">Interaktives Periodensystem v2.2</span>
+  </footer>
+
+</div>
+<script>
+let lang = "de";
+const T = {
+  de: {
+    title:"Datenschutzerklärung", sub:"Gemäß DSGVO / Art. 13 DSGVO", lang_btn:"English",
+    green_title:"✓ Diese App ist datenschutzfreundlich",
+    green_text:"Das Interaktive Periodensystem verarbeitet keine personenbezogenen Daten. Es werden keine Cookies gesetzt, kein Tracking durchgeführt und keine Daten an Server übertragen.",
+    sec_verantwortlich:"Verantwortlicher", sec_erhobene:"Erhobene Daten",
+    sec_hosting:"Hosting – GitHub Pages", sec_stores:"App Stores",
+    sec_rechte:"Deine Rechte", sec_aktuell:"Aktualität",
+    lbl_email:"E-Mail:", lnk_impressum:"→ Vollständiges Impressum",
+    erhobene_text:"Diese Anwendung erhebt und speichert <strong>keine personenbezogenen Daten</strong>. Im Einzelnen gilt:",
+    checks:[
+      "Keine Registrierung, kein Nutzerkonto, kein Login",
+      "Keine Cookies",
+      "Kein Tracking, kein Analytics, keine Werbung",
+      "Keine Übertragung von Daten an externe Server",
+      "Quiz-Ergebnisse und Lernfortschritt werden nur im Arbeitsspeicher des Browsers gespeichert und bei Schließen der App automatisch gelöscht",
+      "Keine dauerhafte lokale Speicherung (kein localStorage, kein sessionStorage)"
+    ],
+    hosting_text:"Die Anwendung wird über <strong>GitHub Pages</strong> gehostet (GitHub, Inc., 88 Colin P. Kelly Jr. Street, San Francisco, CA 94107, USA). Beim Abruf der Seite werden durch GitHub automatisch Server-Log-Dateien erstellt, die folgende Daten enthalten können: IP-Adresse des anfragenden Rechners, Datum und Uhrzeit des Abrufs, Name und URL der abgerufenen Datei, Browsertyp und -version, Betriebssystem.",
+    hosting_text2:'Diese Daten werden von GitHub gemäß deren Datenschutzrichtlinie verarbeitet und liegen nicht in meiner Kontrolle. Weitere Informationen: <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement" target="_blank" rel="noopener">GitHub Datenschutzerklärung</a>',
+    stores_text:"Wenn du diese Anwendung über den Microsoft Store oder Google Play Store installierst, gelten zusätzlich die Datenschutzbestimmungen dieser Plattformen:",
+    stores_checks:[
+      '<a href="https://privacy.microsoft.com/de-de/privacystatement" target="_blank" rel="noopener">Microsoft Datenschutzbestimmungen</a>',
+      '<a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google Datenschutzbestimmungen</a>'
+    ],
+    stores_note:"Die App selbst überträgt auch nach der Store-Installation keinerlei Daten.",
+    rechte_text:"Da keine personenbezogenen Daten verarbeitet werden, entfallen die typischen DSGVO-Rechte (Auskunft, Berichtigung, Löschung etc.) in der Praxis. Für Fragen zum Datenschutz stehe ich unter der o. g. E-Mail-Adresse zur Verfügung.",
+    aktuell_text:"Diese Datenschutzerklärung ist aktuell gültig und hat den Stand:",
+    datum:"Mai 2026",
+    aktuell_suffix:" Ich behalte mir vor, diese Erklärung bei Änderungen der Anwendung oder der Rechtslage anzupassen.",
+    back:"← Zurück zum Periodensystem",
+    footer_imp:"Impressum", footer_hilfe:"Hilfe", footer_ver:"Interaktives Periodensystem v2.2"
+  },
+  en: {
+    title:"Privacy Policy", sub:"Pursuant to GDPR / Art. 13 GDPR", lang_btn:"Deutsch",
+    green_title:"✓ This app is privacy-friendly",
+    green_text:"The Interactive Periodic Table does not process any personal data. No cookies are set, no tracking is performed, and no data is transmitted to servers.",
+    sec_verantwortlich:"Data Controller", sec_erhobene:"Data Collected",
+    sec_hosting:"Hosting – GitHub Pages", sec_stores:"App Stores",
+    sec_rechte:"Your Rights", sec_aktuell:"Currency",
+    lbl_email:"Email:", lnk_impressum:"→ Full Legal Notice",
+    erhobene_text:"This application does <strong>not collect or store any personal data</strong>. Specifically:",
+    checks:[
+      "No registration, no user account, no login",
+      "No cookies",
+      "No tracking, no analytics, no advertising",
+      "No transmission of data to external servers",
+      "Quiz results and learning progress are stored only in the browser's working memory and are automatically deleted when the app is closed",
+      "No persistent local storage (no localStorage, no sessionStorage)"
+    ],
+    hosting_text:"The application is hosted via <strong>GitHub Pages</strong> (GitHub, Inc., 88 Colin P. Kelly Jr. Street, San Francisco, CA 94107, USA). When the page is accessed, GitHub automatically creates server log files which may include: IP address of the requesting device, date and time of access, name and URL of the file accessed, browser type and version, operating system.",
+    hosting_text2:'This data is processed by GitHub in accordance with their privacy policy and is outside my control. More information: <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement" target="_blank" rel="noopener">GitHub Privacy Statement</a>',
+    stores_text:"If you install this application via the Microsoft Store or Google Play Store, the privacy policies of those platforms also apply:",
+    stores_checks:[
+      '<a href="https://privacy.microsoft.com/en-us/privacystatement" target="_blank" rel="noopener">Microsoft Privacy Statement</a>',
+      '<a href="https://policies.google.com/privacy" target="_blank" rel="noopener">Google Privacy Policy</a>'
+    ],
+    stores_note:"The app itself does not transmit any data, even after store installation.",
+    rechte_text:"Since no personal data is processed, the typical GDPR rights (access, rectification, deletion, etc.) are not applicable in practice. For privacy-related questions, please contact me at the email address above.",
+    aktuell_text:"This privacy policy is currently valid as of:",
+    datum:"May 2026",
+    aktuell_suffix:" I reserve the right to update this policy if the application or applicable law changes.",
+    back:"← Back to Periodic Table",
+    footer_imp:"Legal Notice", footer_hilfe:"Help", footer_ver:"Interactive Periodic Table v2.2"
+  }
+};
+function apply() {
+  const t = T[lang];
+  document.documentElement.lang = lang;
+  document.title = t.title + " – Interaktives Periodensystem";
+  const s = (id, v) => { const el=document.getElementById(id); if(el) el.innerHTML=v; };
+  s("h1",t.title); s("sub",t.sub); s("langBtn",t.lang_btn);
+  s("green-title",t.green_title); s("green-text",t.green_text);
+  s("sec-verantwortlich",t.sec_verantwortlich); s("sec-erhobene",t.sec_erhobene);
+  s("sec-hosting",t.sec_hosting); s("sec-stores",t.sec_stores);
+  s("sec-rechte",t.sec_rechte); s("sec-aktuell",t.sec_aktuell);
+  s("lbl-email",t.lbl_email); s("lnk-impressum",t.lnk_impressum);
+  s("erhobene-text",t.erhobene_text);
+  s("hosting-text",t.hosting_text); s("hosting-text2",t.hosting_text2);
+  s("stores-text",t.stores_text); s("stores-note",t.stores_note);
+  s("rechte-text",t.rechte_text);
+  s("aktuell-text",t.aktuell_text+" <strong id='datum'>"+t.datum+"</strong>"+t.aktuell_suffix);
+  s("back-link",t.back);
+  s("footer-imp",t.footer_imp); s("footer-hilfe",t.footer_hilfe); s("footer-ver",t.footer_ver);
+
+  // Checklist
+  const cl = document.getElementById("check-list");
+  if(cl) cl.innerHTML = t.checks.map(c=>`<li>${c}</li>`).join("");
+  const sl = document.getElementById("stores-list");
+  if(sl) sl.innerHTML = t.stores_checks.map(c=>`<li>${c}</li>`).join("");
+}
+function toggleLang() { lang = lang==="de"?"en":"de"; apply(); }
+apply();
+</script>
+</body>
+</html>

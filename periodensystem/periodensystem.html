@@ -1,0 +1,2131 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Interaktives Periodensystem</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0f1419">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Periodensystem">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="description" content="Interaktives Periodensystem mit Leitner-Lernmodus, Quiz (20 Fragen), Karteikarten und Wiederholungsstapel. Alle 118 Elemente, DE/EN. Offline nutzbar.">
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .catch(err => console.warn('SW registration failed:', err));
+  });
+}
+</script>
+</head>
+<body>
+<!--
+Version 2.1
+Interaktives Periodensystem
+Changelog:
+  1.0 - Initial release
+  1.1 - Marker: Beschriftung, Tooltip, Pulse-Highlight
+  1.2 - SVG-Trichter (verworfen)
+  1.3 - L-Linien außen am Grid ohne Überlappung
+  2.0 - Leitner-System: Quiz 20 Fragen, Ergebnis, Wiederholungsstapel
+  2.1 - Verbindungslinien neutral/monochrom; Aggregat bereinigt;
+        Vorkommen-Filter (natürlich/synthetisch); Karteikarte:
+        Entdeckung + Bedeutung + Synthese-Hintergrund
+-->
+<style>
+  :root {
+    --bg: #0f1419;
+    --bg-elev: #1a2128;
+    --bg-card: #232c36;
+    --border: #2f3a45;
+    --text: #e6edf3;
+    --text-dim: #8b96a3;
+    --accent: #4a9eff;
+    --accent-dim: #2d5a8a;
+
+    /* Element category colors — vintage / muted palette */
+    --c-alkali:    #B85E4C;  /* terracotta        */
+    --c-alkaline:  #B08040;  /* old gold          */
+    --c-trans:     #A89244;  /* antique brass     */
+    --c-posttrans: #6A8EAA;  /* slate blue        */
+    --c-metalloid: #8070A4;  /* muted violet      */
+    --c-nonmetal:  #5C8C64;  /* sage green        */
+    --c-halogen:   #4A8882;  /* verdigris / patina*/
+    --c-noble:     #A4687A;  /* old rose          */
+    --c-lanth:     #B06E64;  /* muted salmon/clay */
+    --c-act:       #7C60A2;  /* dusty amethyst    */
+    --c-unknown:   #6C6860;  /* warm taupe        */
+  }
+
+  * { box-sizing: border-box; }
+
+  body, html {
+    margin: 0; padding: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  }
+
+  .app { padding: 16px; max-width: 1600px; margin: 0 auto; }
+
+  .header {
+    display: flex; flex-wrap: wrap; gap: 12px; align-items: center;
+    margin-bottom: 16px; padding-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+  }
+  .header h1 { margin: 0; font-size: 20px; font-weight: 600; }
+  .header .spacer { flex: 1; }
+
+  .controls { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+
+  button, select, input {
+    background: var(--bg-elev);
+    color: var(--text);
+    border: 1px solid var(--border);
+    padding: 6px 12px;
+    border-radius: 6px;
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  button:hover, select:hover { border-color: var(--accent); }
+  button.active { background: var(--accent-dim); border-color: var(--accent); }
+  input { cursor: text; min-width: 180px; }
+  input:focus { outline: none; border-color: var(--accent); }
+
+  .toolbar {
+    display: flex; flex-wrap: wrap; gap: 10px;
+    margin-bottom: 14px; align-items: center;
+  }
+  .toolbar-group {
+    display: flex; gap: 6px; align-items: center;
+    padding: 4px 10px; background: var(--bg-elev);
+    border-radius: 8px; border: 1px solid var(--border);
+  }
+  .toolbar-group label {
+    font-size: 11px; color: var(--text-dim);
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+
+  /* Periodic table grid */
+  .ptable-wrap {
+    position: relative;
+    margin-bottom: 16px;
+  }
+  .ptable {
+    display: grid;
+    grid-template-columns: repeat(18, minmax(0, 1fr));
+    gap: 3px;
+  }
+
+  /* SVG overlay (L-link connector) */
+  .series-overlay {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 3;
+    overflow: visible;
+  }
+
+  /* SVG side-links: L-line runs left of grid, then into empty placeholder columns */
+  .series-link {
+    fill: none;
+    stroke-width: 2;
+    stroke-opacity: 0.6;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+    stroke-dasharray: 5 4;
+    transition: stroke-opacity 0.2s, stroke-width 0.2s;
+  }
+  .series-link.active {
+    stroke-opacity: 1;
+    stroke-width: 2.8;
+    stroke-dasharray: none;
+  }
+  .series-link-lanthanide { stroke: #000; }
+  .series-link-actinide   { stroke: #000; }
+
+  .series-dot { opacity: 0.7; transition: opacity 0.2s; }
+  .series-dot.active { opacity: 1; }
+  .series-dot-lanthanide { fill: #000; }
+  .series-dot-actinide   { fill: #000; }
+
+  @keyframes dash-flow {
+    to { stroke-dashoffset: -18; }
+  }
+  .series-link.flowing {
+    animation: dash-flow 0.85s linear infinite;
+  }
+
+  .cell {
+    aspect-ratio: 1;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 3px;
+    display: flex; flex-direction: column;
+    cursor: pointer;
+    transition: transform 0.1s, box-shadow 0.1s, opacity 0.2s;
+    position: relative;
+    overflow: hidden;
+    min-height: 0;
+    z-index: 2;
+  }
+  .cell:hover {
+    transform: scale(1.08);
+    z-index: 10;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+  }
+  .cell.dim { opacity: 0.15; }
+  .cell.highlight { box-shadow: 0 0 0 2px var(--accent); }
+
+  /* Marker cells (Lanthanide/Actinide placeholders) — make them clearly interactive */
+  .cell.marker {
+    cursor: pointer;
+    position: relative;
+  }
+  .cell.marker::after {
+    content: "↓";
+    position: absolute;
+    top: 2px; right: 4px;
+    font-size: 10px;
+    color: rgba(0,0,0,0.55);
+    font-weight: 700;
+  }
+  .cell.marker:hover {
+    filter: brightness(1.1);
+  }
+
+  /* Pulse animation for highlighted series row */
+  @keyframes series-pulse {
+    0%, 100% { box-shadow: 0 0 0 0 var(--accent); }
+    50%      { box-shadow: 0 0 0 3px var(--accent), 0 0 16px var(--accent); }
+  }
+  .cell.series-highlight {
+    animation: series-pulse 0.7s ease-in-out 3;
+    z-index: 5;
+  }
+
+  .num { font-size: 9px; color: rgba(0,0,0,0.65); line-height: 1; }
+  .sym { font-size: 18px; font-weight: 700; color: #fff; line-height: 1.1; margin-top: auto; }
+  .name { font-size: 7px; color: rgba(0,0,0,0.7); line-height: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .mass { font-size: 7px; color: rgba(0,0,0,0.6); line-height: 1; }
+
+  /* Element category bg colors */
+  .cat-alkali-metal       { background: var(--c-alkali); }
+  .cat-alkaline-earth     { background: var(--c-alkaline); }
+  .cat-transition-metal   { background: var(--c-trans); }
+  .cat-post-transition    { background: var(--c-posttrans); }
+  .cat-metalloid          { background: var(--c-metalloid); }
+  .cat-nonmetal           { background: var(--c-nonmetal); }
+  .cat-halogen            { background: var(--c-halogen); }
+  .cat-noble-gas          { background: var(--c-noble); }
+  .cat-lanthanide         { background: var(--c-lanth); }
+  .cat-actinide           { background: var(--c-act); }
+  .cat-unknown            { background: var(--c-unknown); }
+
+  /* Labels in grid */
+  .label-cell {
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; color: var(--text-dim);
+    background: transparent; border: none;
+    pointer-events: none;
+  }
+  .placeholder { background: transparent; border: none; pointer-events: none; }
+
+  /* Legend */
+  .legend {
+    display: flex; flex-wrap: wrap; gap: 8px;
+    margin-bottom: 16px;
+    padding: 10px; background: var(--bg-elev);
+    border-radius: 8px; border: 1px solid var(--border);
+  }
+  .legend-item {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 11px;
+    cursor: pointer;
+    padding: 3px 8px;
+    border-radius: 4px;
+    transition: background 0.15s;
+  }
+  .legend-item:hover { background: var(--bg-card); }
+  .legend-swatch {
+    width: 14px; height: 14px;
+    border-radius: 3px;
+    border: 1px solid rgba(0,0,0,0.2);
+  }
+
+  /* Trends colorbar */
+  .trends-bar {
+    display: none; align-items: center; gap: 12px;
+    margin-bottom: 14px; padding: 10px;
+    background: var(--bg-elev); border-radius: 8px;
+    border: 1px solid var(--border);
+  }
+  .trends-bar.show { display: flex; flex-wrap: wrap; }
+  .gradient {
+    height: 14px; flex: 1; min-width: 180px;
+    border-radius: 4px;
+    background: linear-gradient(to right, #2d5a8a, #4a9eff, #ffd43b, #ff8787);
+  }
+
+  /* Modal */
+  .modal-overlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.75);
+    display: none;
+    align-items: center; justify-content: center;
+    z-index: 100;
+    padding: 20px;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal {
+    background: var(--bg-elev);
+    border-radius: 12px;
+    border: 1px solid var(--border);
+    max-width: 600px; width: 100%;
+    max-height: 90vh; overflow-y: auto;
+    padding: 24px;
+    position: relative;
+  }
+  .modal-close {
+    position: absolute; top: 12px; right: 12px;
+    background: transparent; border: none; color: var(--text-dim);
+    font-size: 20px; cursor: pointer; padding: 4px 10px;
+  }
+  .modal-close:hover { color: var(--text); }
+
+  .el-header {
+    display: flex; gap: 16px; align-items: center;
+    margin-bottom: 16px; padding-bottom: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .el-badge {
+    width: 80px; height: 80px; border-radius: 8px;
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    color: #000;
+  }
+  .el-badge .b-num { font-size: 11px; align-self: flex-start; padding: 2px 6px; }
+  .el-badge .b-sym { font-size: 32px; font-weight: 800; }
+  .el-badge .b-mass { font-size: 9px; padding-bottom: 4px; }
+  .el-title h2 { margin: 0 0 4px; font-size: 24px; }
+  .el-title .cat { font-size: 13px; color: var(--text-dim); }
+
+  .el-grid {
+    display: grid; grid-template-columns: repeat(2, 1fr);
+    gap: 10px 20px;
+  }
+  .el-row {
+    display: flex; justify-content: space-between;
+    padding: 6px 0; border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .el-row .k { color: var(--text-dim); }
+  .el-row .v { font-weight: 500; text-align: right; }
+
+  .el-section {
+    margin-top: 16px; padding-top: 16px;
+    border-top: 1px solid var(--border);
+  }
+  .el-section h3 {
+    font-size: 12px; text-transform: uppercase;
+    letter-spacing: 0.5px; color: var(--text-dim);
+    margin: 0 0 8px;
+  }
+  .el-section p { margin: 0; font-size: 13px; line-height: 1.5; }
+
+  .config-shells {
+    display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px;
+  }
+  .shell-pill {
+    background: var(--bg-card); border: 1px solid var(--border);
+    padding: 4px 10px; border-radius: 14px; font-size: 12px;
+  }
+  .shell-pill .lbl { color: var(--text-dim); font-size: 10px; margin-right: 4px; }
+
+  /* Quiz */
+  .quiz-modal { max-width: 500px; }
+  .quiz-q { font-size: 16px; margin-bottom: 16px; line-height: 1.5; }
+  .quiz-opts { display: grid; gap: 8px; margin-bottom: 16px; }
+  .quiz-opt {
+    text-align: left; padding: 12px;
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 6px; cursor: pointer;
+    transition: all 0.15s;
+  }
+  .quiz-opt:hover { border-color: var(--accent); }
+  .quiz-opt.correct { background: rgba(105, 219, 124, 0.2); border-color: var(--c-nonmetal); }
+  .quiz-opt.wrong { background: rgba(255, 107, 107, 0.2); border-color: var(--c-alkali); }
+  .quiz-opt:disabled { cursor: default; }
+  .quiz-stats {
+    display: flex; justify-content: space-between;
+    margin-bottom: 12px; font-size: 13px; color: var(--text-dim);
+  }
+  .quiz-next { width: 100%; margin-top: 10px; padding: 10px; font-weight: 600; }
+
+  /* Flashcard */
+  .fc-card {
+    perspective: 1000px;
+    height: 280px;
+    margin-bottom: 16px;
+    cursor: pointer;
+  }
+  .fc-inner {
+    position: relative; width: 100%; height: 100%;
+    transition: transform 0.5s;
+    transform-style: preserve-3d;
+  }
+  .fc-card.flipped .fc-inner { transform: rotateY(180deg); }
+  .fc-front, .fc-back {
+    position: absolute; inset: 0;
+    backface-visibility: hidden;
+    border-radius: 10px;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 20px;
+    color: #000;
+  }
+  .fc-back { transform: rotateY(180deg); background: var(--bg-card); color: var(--text); padding: 24px; }
+  .fc-front .fc-sym { font-size: 80px; font-weight: 800; }
+  .fc-front .fc-num { font-size: 16px; }
+  .fc-hint { font-size: 11px; color: var(--text-dim); margin-top: 10px; text-align: center; }
+  .fc-back-row { display: flex; justify-content: space-between; width: 100%; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 13px; }
+  .fc-back-row .k { color: var(--text-dim); }
+  .fc-nav { display: flex; gap: 8px; }
+  .fc-nav button { flex: 1; }
+
+  /* ── Wissenstand (header) ── */
+  .wissenstand {
+    display: flex; gap: 10px; align-items: center;
+    margin-top: 4px; font-size: 12px; color: var(--text-dim);
+    flex-wrap: wrap;
+  }
+  .ws-pill {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 3px 10px; font-size: 12px;
+    display: inline-flex; align-items: center; gap: 6px;
+  }
+  .ws-pill .ws-val { color: var(--text); font-weight: 600; }
+  .deck-btn {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 12px; padding: 3px 10px; font-size: 12px;
+    cursor: pointer; display: inline-flex; align-items: center; gap: 5px;
+    color: var(--text); transition: border-color 0.15s;
+  }
+  .deck-btn:hover { border-color: var(--accent); }
+  .deck-badge {
+    background: var(--c-alkali); color: #000; font-weight: 700;
+    font-size: 11px; border-radius: 8px; padding: 1px 6px; min-width: 18px;
+    text-align: center;
+  }
+
+  /* ── Quiz progress bar ── */
+  .quiz-progress-wrap {
+    height: 5px; background: var(--border); border-radius: 3px;
+    margin-bottom: 14px; overflow: hidden;
+  }
+  .quiz-progress-bar {
+    height: 100%; background: var(--accent);
+    transition: width 0.3s; border-radius: 3px;
+  }
+
+  /* ── Quiz results ── */
+  .result-score-wrap {
+    display: flex; align-items: center; gap: 14px; margin-bottom: 16px;
+    padding: 14px; background: var(--bg-card); border-radius: 8px;
+    border: 1px solid var(--border);
+  }
+  .result-score-big {
+    font-size: 36px; font-weight: 800; line-height: 1;
+  }
+  .result-score-sub { font-size: 12px; color: var(--text-dim); }
+  .result-bar-wrap { flex: 1; }
+  .result-bar-bg {
+    height: 8px; background: var(--border); border-radius: 4px;
+    overflow: hidden; margin-bottom: 4px;
+  }
+  .result-bar-fill { height: 100%; border-radius: 4px; }
+  .result-deck-note {
+    font-size: 12px; color: var(--text-dim); padding: 8px 0; margin-bottom: 10px;
+  }
+  .result-table {
+    width: 100%; border-collapse: collapse; font-size: 12px;
+    margin-bottom: 14px;
+  }
+  .result-table th {
+    text-align: left; padding: 5px 6px;
+    color: var(--text-dim); font-weight: 500;
+    border-bottom: 1px solid var(--border); font-size: 11px;
+  }
+  .result-table td { padding: 5px 6px; border-bottom: 1px solid rgba(255,255,255,0.04); vertical-align: middle; }
+  .result-table tr.row-wrong td { background: rgba(255,107,107,0.07); }
+  .result-table tr.row-right td { background: rgba(105,219,124,0.05); }
+  .el-micro {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 26px; height: 26px; border-radius: 4px;
+    font-weight: 800; font-size: 12px; color: #000;
+  }
+  .result-actions {
+    display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px;
+  }
+  .result-actions button { flex: 1; min-width: 110px; padding: 9px; }
+
+  /* ── Deck / Review mode badge on fc title ── */
+  .mode-badge {
+    font-size: 10px; padding: 2px 8px; border-radius: 10px;
+    margin-left: 8px; font-weight: 600; vertical-align: middle;
+  }
+  .mode-badge.review { background: var(--c-alkali); color: #000; }
+  .mode-badge.full   { background: var(--accent-dim); color: var(--text); }
+    .cell { aspect-ratio: 1; }
+    .num { font-size: 7px; }
+    .sym { font-size: 13px; }
+    .name { display: none; }
+    .mass { display: none; }
+  }
+  @media (max-width: 600px) {
+    .ptable { gap: 1px; }
+    .sym { font-size: 10px; }
+    .num { font-size: 6px; }
+  }
+</style>
+
+<div class="app">
+  <div class="header">
+    <div>
+      <h1 id="title">Interaktives Periodensystem</h1>
+      <div class="wissenstand" id="wissenstand" style="display:none;">
+        <div class="ws-pill">📊 <span data-i18n="ws_label">Stand des Wissens:</span>&nbsp;<span class="ws-val" id="wsScore">—</span></div>
+        <button class="deck-btn" id="deckBtn" style="display:none;" onclick="openReviewDeck()">
+          🔄 <span data-i18n="ws_deck">Wiederholung</span>
+          <span class="deck-badge" id="deckBadge">0</span>
+        </button>
+      </div>
+    </div>
+    <div class="spacer"></div>
+    <div class="controls">
+      <button id="langBtn">EN</button>
+      <button onclick="window.open('hilfe.html','_blank')" title="Hilfe / Help">❓</button>
+      <button id="quizBtn">🎯 <span data-i18n="quiz">Quiz</span></button>
+      <button id="fcBtn">🃏 <span data-i18n="flashcards">Karteikarten</span></button>
+    </div>
+  </div>
+
+  <div class="toolbar">
+    <input type="text" id="search" data-i18n-ph="search_ph" placeholder="Suchen (Symbol, Name, Nr.)..." />
+    <div class="toolbar-group">
+      <label data-i18n="state">Aggregat:</label>
+      <select id="stateFilter">
+        <option value="all" data-i18n="all">Alle</option>
+        <option value="solid" data-i18n="solid">Fest</option>
+        <option value="liquid" data-i18n="liquid">Flüssig</option>
+        <option value="gas" data-i18n="gas">Gasförmig</option>
+      </select>
+    </div>
+    <div class="toolbar-group">
+      <label data-i18n="occ_label">Vorkommen:</label>
+      <select id="occFilter">
+        <option value="all" data-i18n="all">Alle</option>
+        <option value="natural" data-i18n="occ_natural">Natürlich</option>
+        <option value="synthetic" data-i18n="occ_synthetic">Synthetisch</option>
+      </select>
+    </div>
+    <div class="toolbar-group">
+      <label data-i18n="trend">Trend:</label>
+      <select id="trendFilter">
+        <option value="none" data-i18n="trend_none">Kategorie</option>
+        <option value="atomicMass" data-i18n="trend_mass">Atommasse</option>
+        <option value="electronegativity" data-i18n="trend_eneg">Elektronegativität</option>
+        <option value="atomicRadius" data-i18n="trend_radius">Atomradius</option>
+        <option value="ionizationEnergy" data-i18n="trend_ion">Ionisierungsenergie</option>
+        <option value="meltingPoint" data-i18n="trend_melt">Schmelzpunkt</option>
+        <option value="boilingPoint" data-i18n="trend_boil">Siedepunkt</option>
+        <option value="density" data-i18n="trend_dens">Dichte</option>
+      </select>
+    </div>
+    <button id="resetBtn" data-i18n="reset">Reset</button>
+  </div>
+
+  <div class="trends-bar" id="trendsBar">
+    <span id="trendLabel" style="font-size: 12px; color: var(--text-dim);"></span>
+    <span id="trendMin" style="font-size: 11px;"></span>
+    <div class="gradient"></div>
+    <span id="trendMax" style="font-size: 11px;"></span>
+    <span id="trendUnit" style="font-size: 11px; color: var(--text-dim);"></span>
+  </div>
+
+  <div class="legend" id="legend"></div>
+
+  <div class="ptable-wrap">
+    <div class="ptable" id="ptable"></div>
+    <svg class="series-overlay" id="seriesOverlay" aria-hidden="true"></svg>
+  </div>
+
+  <div style="font-size: 11px; color: var(--text-dim); text-align: center; margin-top: 8px;">
+    <span data-i18n="hint">Klick auf Element für Details · Klick auf Legende zum Filtern</span>
+  </div>
+
+  <div style="margin-top:24px;padding-top:14px;border-top:1px solid var(--border);
+    text-align:center;font-size:11px;color:var(--text-dim);">
+    <a href="impressum.html" target="_blank"
+       style="color:var(--text-dim);text-decoration:none;" id="lnk-imp">Impressum</a>
+    &nbsp;·&nbsp;
+    <a href="datenschutz.html" target="_blank"
+       style="color:var(--text-dim);text-decoration:none;" id="lnk-ds">Datenschutz</a>
+    &nbsp;·&nbsp;
+    <span>v2.2</span>
+  </div>
+</div>
+
+<!-- Element detail modal -->
+<div class="modal-overlay" id="modal">
+  <div class="modal" id="modalContent"></div>
+</div>
+
+<!-- Quiz modal -->
+<div class="modal-overlay" id="quizModal">
+  <div class="modal quiz-modal" id="quizContent"></div>
+</div>
+
+<!-- Flashcard modal -->
+<div class="modal-overlay" id="fcModal">
+  <div class="modal quiz-modal" id="fcContent"></div>
+</div>
+
+<script>
+// ============================================================
+// I18N
+// ============================================================
+const I18N = {
+  de: {
+    title: "Interaktives Periodensystem",
+    quiz: "Quiz",
+    flashcards: "Karteikarten",
+    search_ph: "Suchen (Symbol, Name, Nr.)...",
+    state: "Aggregat:",
+    all: "Alle",
+    solid: "Fest",
+    liquid: "Flüssig",
+    gas: "Gasförmig",
+    synthetic: "Synthetisch",
+    trend: "Trend:",
+    trend_none: "Kategorie",
+    trend_mass: "Atommasse",
+    trend_eneg: "Elektronegativität",
+    trend_radius: "Atomradius",
+    trend_ion: "Ionisierungsenergie",
+    trend_melt: "Schmelzpunkt",
+    trend_boil: "Siedepunkt",
+    trend_dens: "Dichte",
+    reset: "Reset",
+    hint: "Klick auf Element für Details · Klick auf Legende zum Filtern",
+    period: "Periode",
+    group: "Gruppe",
+    block: "Block",
+    atomic_number: "Ordnungszahl",
+    atomic_mass: "Atommasse",
+    category: "Kategorie",
+    state_phase: "Aggregatzustand",
+    electronegativity: "Elektronegativität (Pauling)",
+    atomic_radius: "Atomradius",
+    ionization_energy: "Ionisierungsenergie",
+    melting_point: "Schmelzpunkt",
+    boiling_point: "Siedepunkt",
+    density: "Dichte",
+    discovered: "Entdeckt",
+    discovered_by: "Entdeckt von",
+    e_config: "Elektronenkonfiguration",
+    shells: "Schalenbelegung",
+    description: "Beschreibung",
+    cat_alkali_metal: "Alkalimetalle",
+    cat_alkaline_earth: "Erdalkalimetalle",
+    cat_transition_metal: "Übergangsmetalle",
+    cat_post_transition: "Post-Übergangsmetalle",
+    cat_metalloid: "Halbmetalle",
+    cat_nonmetal: "Nichtmetalle",
+    cat_halogen: "Halogene",
+    cat_noble_gas: "Edelgase",
+    cat_lanthanide: "Lanthanoide",
+    cat_actinide: "Actinoide",
+    cat_unknown: "Unbekannt",
+    unknown: "unbekannt",
+    lanthanides_short: "Lanthanoide",
+    actinides_short: "Actinoide",
+    marker_tooltip: "Lanthanoide / Actinoide werden aus Platzgründen unter dem Hauptblock dargestellt. Klicken, um die Reihe hervorzuheben.",
+    quiz_title: "Quiz",
+    quiz_q1: "Welches Element hat das Symbol \"{0}\"?",
+    quiz_q2: "Was ist das Symbol von {0}?",
+    quiz_q3: "Welche Ordnungszahl hat {0}?",
+    quiz_q4: "Welches Element hat Ordnungszahl {0}?",
+    quiz_q5: "Zu welcher Kategorie gehört {0}?",
+    quiz_progress: "Frage {0} von {1}",
+    quiz_correct: "✓ Richtig!",
+    quiz_wrong: "✗ Falsch — Richtige Antwort:",
+    quiz_next: "Weiter →",
+    quiz_result_title: "Ergebnis",
+    quiz_result_score: "{0} von {1} richtig",
+    quiz_result_pct: "{0} %",
+    quiz_result_added: "🔄 {0} Element(e) zum Wiederholungsstapel hinzugefügt",
+    quiz_result_none_added: "🏆 Alles richtig — nichts zum Wiederholen!",
+    quiz_result_deck_already: "🔄 {0} neue(s) Element(e) zum Stapel hinzugefügt ({1} gesamt)",
+    quiz_retry: "Nochmal (alle 86)",
+    quiz_deck_start: "Quiz aus Stapel ({0})",
+    quiz_col_nr: "#",
+    quiz_col_el: "Element",
+    quiz_col_q: "Frage",
+    quiz_col_answer: "Deine Antwort",
+    quiz_col_correct: "Richtig",
+    quiz_close: "Schließen",
+    quiz_mode_deck: "Stapel-Quiz",
+    quiz_deck_empty: "Dein Wiederholungsstapel ist leer.",
+    occ_label: "Vorkommen:",
+    occ_natural: "Natürlich",
+    occ_synthetic: "Synthetisch",
+    card_discovery: "Entdeckung",
+    card_use: "Bedeutung (Wissenschaft, Technik, Industrie)",
+    card_synth: "Synthese-Hintergrund",
+    card_occurrence: "Vorkommen",
+    occ_nat_label: "Natürlich",
+    occ_syn_label: "Synthetisch (nur künstlich herstellbar)",
+    ws_label: "Stand des Wissens:",
+    ws_deck: "Wiederholung",
+    fc_title: "Karteikarten",
+    fc_title_review: "Wiederholungsstapel",
+    fc_flip: "Klick zum Umdrehen",
+    fc_prev: "← Zurück",
+    fc_next: "Weiter →",
+    fc_card: "Karte {0} von {1}",
+    fc_deck_empty: "Dein Wiederholungsstapel ist leer. Mach zuerst ein Quiz!",
+    fc_deck_quiz: "Quiz aus Stapel ({0})",
+    fc_remove: "✓ Aus Stapel entfernen",
+    fc_to_full: "Alle Karteikarten"
+  },
+  en: {
+    title: "Interactive Periodic Table",
+    quiz: "Quiz",
+    flashcards: "Flashcards",
+    search_ph: "Search (symbol, name, #)...",
+    state: "State:",
+    all: "All",
+    solid: "Solid",
+    liquid: "Liquid",
+    gas: "Gas",
+    synthetic: "Synthetic",
+    trend: "Trend:",
+    trend_none: "Category",
+    trend_mass: "Atomic mass",
+    trend_eneg: "Electronegativity",
+    trend_radius: "Atomic radius",
+    trend_ion: "Ionization energy",
+    trend_melt: "Melting point",
+    trend_boil: "Boiling point",
+    trend_dens: "Density",
+    reset: "Reset",
+    hint: "Click an element for details · Click legend to filter",
+    period: "Period",
+    group: "Group",
+    block: "Block",
+    atomic_number: "Atomic number",
+    atomic_mass: "Atomic mass",
+    category: "Category",
+    state_phase: "State",
+    electronegativity: "Electronegativity (Pauling)",
+    atomic_radius: "Atomic radius",
+    ionization_energy: "Ionization energy",
+    melting_point: "Melting point",
+    boiling_point: "Boiling point",
+    density: "Density",
+    discovered: "Discovered",
+    discovered_by: "Discovered by",
+    e_config: "Electron configuration",
+    shells: "Shell occupation",
+    description: "Description",
+    cat_alkali_metal: "Alkali metals",
+    cat_alkaline_earth: "Alkaline earth metals",
+    cat_transition_metal: "Transition metals",
+    cat_post_transition: "Post-transition metals",
+    cat_metalloid: "Metalloids",
+    cat_nonmetal: "Nonmetals",
+    cat_halogen: "Halogens",
+    cat_noble_gas: "Noble gases",
+    cat_lanthanide: "Lanthanides",
+    cat_actinide: "Actinides",
+    cat_unknown: "Unknown",
+    unknown: "unknown",
+    lanthanides_short: "Lanthanides",
+    actinides_short: "Actinides",
+    marker_tooltip: "Lanthanides / actinides are shown below the main block to save space. Click to highlight the row.",
+    quiz_title: "Quiz",
+    quiz_q1: "Which element has the symbol \"{0}\"?",
+    quiz_q2: "What is the symbol of {0}?",
+    quiz_q3: "What is the atomic number of {0}?",
+    quiz_q4: "Which element has atomic number {0}?",
+    quiz_q5: "Which category does {0} belong to?",
+    quiz_progress: "Question {0} of {1}",
+    quiz_correct: "✓ Correct!",
+    quiz_wrong: "✗ Wrong — Correct answer:",
+    quiz_next: "Next →",
+    quiz_result_title: "Results",
+    quiz_result_score: "{0} of {1} correct",
+    quiz_result_pct: "{0} %",
+    quiz_result_added: "🔄 {0} element(s) added to review deck",
+    quiz_result_none_added: "🏆 All correct — nothing to review!",
+    quiz_result_deck_already: "🔄 {0} new element(s) added to deck ({1} total)",
+    quiz_retry: "Retry (all 86)",
+    quiz_deck_start: "Quiz from deck ({0})",
+    quiz_col_nr: "#",
+    quiz_col_el: "Element",
+    quiz_col_q: "Question",
+    quiz_col_answer: "Your answer",
+    quiz_col_correct: "Correct",
+    quiz_close: "Close",
+    quiz_mode_deck: "Deck Quiz",
+    quiz_deck_empty: "Your review deck is empty.",
+    occ_label: "Occurrence:",
+    occ_natural: "Natural",
+    occ_synthetic: "Synthetic",
+    card_discovery: "Discovery",
+    card_use: "Significance (Science, Technology, Industry)",
+    card_synth: "Synthesis background",
+    card_occurrence: "Occurrence",
+    occ_nat_label: "Natural",
+    occ_syn_label: "Synthetic (artificially produced only)",
+    ws_label: "Knowledge status:",
+    ws_deck: "Review",
+    fc_title: "Flashcards",
+    fc_title_review: "Review Deck",
+    fc_flip: "Click to flip",
+    fc_prev: "← Previous",
+    fc_next: "Next →",
+    fc_card: "Card {0} of {1}",
+    fc_deck_empty: "Your review deck is empty. Do a quiz first!",
+    fc_deck_quiz: "Quiz from deck ({0})",
+    fc_remove: "✓ Remove from deck",
+    fc_to_full: "All flashcards"
+  }
+};
+
+let lang = "de";
+const t = (key, ...args) => {
+  let s = I18N[lang][key] || key;
+  args.forEach((a, i) => s = s.replace(`{${i}}`, a));
+  return s;
+};
+
+// ============================================================
+// ELEMENT DATA
+// Source: Standard chemistry references (atomic masses IUPAC 2021)
+// Units: mass [u], radius [pm], ionization [eV], melt/boil [K], density [g/cm³]
+// ============================================================
+const ELEMENTS = [
+  {n:1,s:"H",de:"Wasserstoff",en:"Hydrogen",p:1,g:1,cat:"nonmetal",phase:"gas",mass:1.008,en_p:2.20,r:53,ie:13.598,mp:13.99,bp:20.271,dens:0.0000899,disc:1766,by:"Cavendish",block:"s",cfg:"1s¹",shells:[1],desc_de:"Häufigstes Element im Universum.",desc_en:"Most abundant element in the universe."},
+  {n:2,s:"He",de:"Helium",en:"Helium",p:1,g:18,cat:"noble-gas",phase:"gas",mass:4.0026,en_p:null,r:31,ie:24.587,mp:0.95,bp:4.222,dens:0.0001785,disc:1868,by:"Janssen, Lockyer",block:"s",cfg:"1s²",shells:[2],desc_de:"Edelgas, unreaktiv, niedrigster Siedepunkt aller Stoffe.",desc_en:"Noble gas, unreactive, lowest boiling point of any substance."},
+  {n:3,s:"Li",de:"Lithium",en:"Lithium",p:2,g:1,cat:"alkali-metal",phase:"solid",mass:6.94,en_p:0.98,r:167,ie:5.392,mp:453.65,bp:1603,dens:0.534,disc:1817,by:"Arfwedson",block:"s",cfg:"[He] 2s¹",shells:[2,1],desc_de:"Leichtestes Metall, in Batterien verwendet.",desc_en:"Lightest metal, used in batteries."},
+  {n:4,s:"Be",de:"Beryllium",en:"Beryllium",p:2,g:2,cat:"alkaline-earth",phase:"solid",mass:9.0122,en_p:1.57,r:112,ie:9.323,mp:1560,bp:2742,dens:1.85,disc:1798,by:"Vauquelin",block:"s",cfg:"[He] 2s²",shells:[2,2],desc_de:"Leicht und steif, in Luft- und Raumfahrt eingesetzt.",desc_en:"Light and stiff, used in aerospace."},
+  {n:5,s:"B",de:"Bor",en:"Boron",p:2,g:13,cat:"metalloid",phase:"solid",mass:10.81,en_p:2.04,r:87,ie:8.298,mp:2349,bp:4200,dens:2.34,disc:1808,by:"Davy, Gay-Lussac",block:"p",cfg:"[He] 2s² 2p¹",shells:[2,3],desc_de:"Halbmetall, in Glasfasern und Waschmitteln.",desc_en:"Metalloid, used in glass fibers and detergents."},
+  {n:6,s:"C",de:"Kohlenstoff",en:"Carbon",p:2,g:14,cat:"nonmetal",phase:"solid",mass:12.011,en_p:2.55,r:67,ie:11.260,mp:3915,bp:3915,dens:2.267,disc:null,by:null,block:"p",cfg:"[He] 2s² 2p²",shells:[2,4],desc_de:"Grundlage aller organischen Chemie.",desc_en:"Foundation of all organic chemistry."},
+  {n:7,s:"N",de:"Stickstoff",en:"Nitrogen",p:2,g:15,cat:"nonmetal",phase:"gas",mass:14.007,en_p:3.04,r:56,ie:14.534,mp:63.15,bp:77.355,dens:0.001251,disc:1772,by:"Rutherford",block:"p",cfg:"[He] 2s² 2p³",shells:[2,5],desc_de:"78% der Erdatmosphäre.",desc_en:"78% of Earth's atmosphere."},
+  {n:8,s:"O",de:"Sauerstoff",en:"Oxygen",p:2,g:16,cat:"nonmetal",phase:"gas",mass:15.999,en_p:3.44,r:48,ie:13.618,mp:54.36,bp:90.188,dens:0.001429,disc:1774,by:"Scheele, Priestley",block:"p",cfg:"[He] 2s² 2p⁴",shells:[2,6],desc_de:"Essentiell für Atmung und Verbrennung.",desc_en:"Essential for respiration and combustion."},
+  {n:9,s:"F",de:"Fluor",en:"Fluorine",p:2,g:17,cat:"halogen",phase:"gas",mass:18.998,en_p:3.98,r:42,ie:17.423,mp:53.48,bp:85.03,dens:0.001696,disc:1886,by:"Moissan",block:"p",cfg:"[He] 2s² 2p⁵",shells:[2,7],desc_de:"Reaktivstes Element, höchste Elektronegativität.",desc_en:"Most reactive element, highest electronegativity."},
+  {n:10,s:"Ne",de:"Neon",en:"Neon",p:2,g:18,cat:"noble-gas",phase:"gas",mass:20.180,en_p:null,r:38,ie:21.565,mp:24.56,bp:27.104,dens:0.0009002,disc:1898,by:"Ramsay, Travers",block:"p",cfg:"[He] 2s² 2p⁶",shells:[2,8],desc_de:"Edelgas, leuchtet rot-orange in Gasentladungslampen.",desc_en:"Noble gas, glows red-orange in discharge lamps."},
+  {n:11,s:"Na",de:"Natrium",en:"Sodium",p:3,g:1,cat:"alkali-metal",phase:"solid",mass:22.990,en_p:0.93,r:190,ie:5.139,mp:370.94,bp:1156.09,dens:0.971,disc:1807,by:"Davy",block:"s",cfg:"[Ne] 3s¹",shells:[2,8,1],desc_de:"Weiches Metall, reagiert heftig mit Wasser.",desc_en:"Soft metal, reacts violently with water."},
+  {n:12,s:"Mg",de:"Magnesium",en:"Magnesium",p:3,g:2,cat:"alkaline-earth",phase:"solid",mass:24.305,en_p:1.31,r:145,ie:7.646,mp:923,bp:1363,dens:1.738,disc:1808,by:"Davy",block:"s",cfg:"[Ne] 3s²",shells:[2,8,2],desc_de:"Leichtes Metall, Bestandteil von Chlorophyll.",desc_en:"Light metal, component of chlorophyll."},
+  {n:13,s:"Al",de:"Aluminium",en:"Aluminum",p:3,g:13,cat:"post-transition",phase:"solid",mass:26.982,en_p:1.61,r:118,ie:5.986,mp:933.47,bp:2743,dens:2.698,disc:1825,by:"Ørsted",block:"p",cfg:"[Ne] 3s² 3p¹",shells:[2,8,3],desc_de:"Häufigstes Metall der Erdkruste.",desc_en:"Most abundant metal in Earth's crust."},
+  {n:14,s:"Si",de:"Silicium",en:"Silicon",p:3,g:14,cat:"metalloid",phase:"solid",mass:28.085,en_p:1.90,r:111,ie:8.152,mp:1687,bp:3538,dens:2.3296,disc:1824,by:"Berzelius",block:"p",cfg:"[Ne] 3s² 3p²",shells:[2,8,4],desc_de:"Halbleiter, Basis der Elektronik.",desc_en:"Semiconductor, basis of electronics."},
+  {n:15,s:"P",de:"Phosphor",en:"Phosphorus",p:3,g:15,cat:"nonmetal",phase:"solid",mass:30.974,en_p:2.19,r:98,ie:10.487,mp:317.30,bp:553.65,dens:1.82,disc:1669,by:"Brand",block:"p",cfg:"[Ne] 3s² 3p³",shells:[2,8,5],desc_de:"Essentiell für DNA und ATP.",desc_en:"Essential for DNA and ATP."},
+  {n:16,s:"S",de:"Schwefel",en:"Sulfur",p:3,g:16,cat:"nonmetal",phase:"solid",mass:32.06,en_p:2.58,r:88,ie:10.360,mp:388.36,bp:717.8,dens:2.067,disc:null,by:null,block:"p",cfg:"[Ne] 3s² 3p⁴",shells:[2,8,6],desc_de:"Gelbes Nichtmetall, in Vulkanen verbreitet.",desc_en:"Yellow nonmetal, common in volcanoes."},
+  {n:17,s:"Cl",de:"Chlor",en:"Chlorine",p:3,g:17,cat:"halogen",phase:"gas",mass:35.45,en_p:3.16,r:79,ie:12.968,mp:171.6,bp:239.11,dens:0.003214,disc:1774,by:"Scheele",block:"p",cfg:"[Ne] 3s² 3p⁵",shells:[2,8,7],desc_de:"Gelb-grünes Halogen, Desinfektionsmittel.",desc_en:"Yellow-green halogen, disinfectant."},
+  {n:18,s:"Ar",de:"Argon",en:"Argon",p:3,g:18,cat:"noble-gas",phase:"gas",mass:39.948,en_p:null,r:71,ie:15.760,mp:83.81,bp:87.302,dens:0.001784,disc:1894,by:"Rayleigh, Ramsay",block:"p",cfg:"[Ne] 3s² 3p⁶",shells:[2,8,8],desc_de:"Edelgas, in Glühlampen verwendet.",desc_en:"Noble gas, used in light bulbs."},
+  {n:19,s:"K",de:"Kalium",en:"Potassium",p:4,g:1,cat:"alkali-metal",phase:"solid",mass:39.098,en_p:0.82,r:243,ie:4.341,mp:336.7,bp:1032,dens:0.862,disc:1807,by:"Davy",block:"s",cfg:"[Ar] 4s¹",shells:[2,8,8,1],desc_de:"Alkalimetall, essentiell für Nervenfunktion.",desc_en:"Alkali metal, essential for nerve function."},
+  {n:20,s:"Ca",de:"Calcium",en:"Calcium",p:4,g:2,cat:"alkaline-earth",phase:"solid",mass:40.078,en_p:1.00,r:194,ie:6.113,mp:1115,bp:1757,dens:1.54,disc:1808,by:"Davy",block:"s",cfg:"[Ar] 4s²",shells:[2,8,8,2],desc_de:"Bestandteil von Knochen und Zähnen.",desc_en:"Component of bones and teeth."},
+  {n:21,s:"Sc",de:"Scandium",en:"Scandium",p:4,g:3,cat:"transition-metal",phase:"solid",mass:44.956,en_p:1.36,r:184,ie:6.561,mp:1814,bp:3109,dens:2.989,disc:1879,by:"Nilson",block:"d",cfg:"[Ar] 3d¹ 4s²",shells:[2,8,9,2],desc_de:"Leichtes Übergangsmetall.",desc_en:"Light transition metal."},
+  {n:22,s:"Ti",de:"Titan",en:"Titanium",p:4,g:4,cat:"transition-metal",phase:"solid",mass:47.867,en_p:1.54,r:176,ie:6.828,mp:1941,bp:3560,dens:4.54,disc:1791,by:"Gregor",block:"d",cfg:"[Ar] 3d² 4s²",shells:[2,8,10,2],desc_de:"Stark, leicht, korrosionsbeständig.",desc_en:"Strong, light, corrosion-resistant."},
+  {n:23,s:"V",de:"Vanadium",en:"Vanadium",p:4,g:5,cat:"transition-metal",phase:"solid",mass:50.942,en_p:1.63,r:171,ie:6.746,mp:2183,bp:3680,dens:6.11,disc:1801,by:"del Río",block:"d",cfg:"[Ar] 3d³ 4s²",shells:[2,8,11,2],desc_de:"Hart, in Spezialstählen verwendet.",desc_en:"Hard, used in specialty steels."},
+  {n:24,s:"Cr",de:"Chrom",en:"Chromium",p:4,g:6,cat:"transition-metal",phase:"solid",mass:51.996,en_p:1.66,r:166,ie:6.767,mp:2180,bp:2944,dens:7.15,disc:1797,by:"Vauquelin",block:"d",cfg:"[Ar] 3d⁵ 4s¹",shells:[2,8,13,1],desc_de:"Glänzend, in Edelstahl und Verchromung.",desc_en:"Shiny, used in stainless steel and chrome plating."},
+  {n:25,s:"Mn",de:"Mangan",en:"Manganese",p:4,g:7,cat:"transition-metal",phase:"solid",mass:54.938,en_p:1.55,r:161,ie:7.434,mp:1519,bp:2334,dens:7.44,disc:1774,by:"Gahn",block:"d",cfg:"[Ar] 3d⁵ 4s²",shells:[2,8,13,2],desc_de:"In Stahllegierungen und Batterien.",desc_en:"In steel alloys and batteries."},
+  {n:26,s:"Fe",de:"Eisen",en:"Iron",p:4,g:8,cat:"transition-metal",phase:"solid",mass:55.845,en_p:1.83,r:156,ie:7.902,mp:1811,bp:3134,dens:7.874,disc:null,by:null,block:"d",cfg:"[Ar] 3d⁶ 4s²",shells:[2,8,14,2],desc_de:"Häufigstes Metall im Erdkern, Basis von Stahl.",desc_en:"Most abundant metal in Earth's core, basis of steel."},
+  {n:27,s:"Co",de:"Cobalt",en:"Cobalt",p:4,g:9,cat:"transition-metal",phase:"solid",mass:58.933,en_p:1.88,r:152,ie:7.881,mp:1768,bp:3200,dens:8.86,disc:1735,by:"Brandt",block:"d",cfg:"[Ar] 3d⁷ 4s²",shells:[2,8,15,2],desc_de:"Ferromagnetisch, in Akkus verwendet.",desc_en:"Ferromagnetic, used in batteries."},
+  {n:28,s:"Ni",de:"Nickel",en:"Nickel",p:4,g:10,cat:"transition-metal",phase:"solid",mass:58.693,en_p:1.91,r:149,ie:7.640,mp:1728,bp:3186,dens:8.912,disc:1751,by:"Cronstedt",block:"d",cfg:"[Ar] 3d⁸ 4s²",shells:[2,8,16,2],desc_de:"Silbrig-weiß, korrosionsbeständig.",desc_en:"Silvery-white, corrosion-resistant."},
+  {n:29,s:"Cu",de:"Kupfer",en:"Copper",p:4,g:11,cat:"transition-metal",phase:"solid",mass:63.546,en_p:1.90,r:145,ie:7.726,mp:1357.77,bp:2835,dens:8.96,disc:null,by:null,block:"d",cfg:"[Ar] 3d¹⁰ 4s¹",shells:[2,8,18,1],desc_de:"Hervorragender elektrischer Leiter.",desc_en:"Excellent electrical conductor."},
+  {n:30,s:"Zn",de:"Zink",en:"Zinc",p:4,g:12,cat:"transition-metal",phase:"solid",mass:65.38,en_p:1.65,r:142,ie:9.394,mp:692.68,bp:1180,dens:7.134,disc:null,by:null,block:"d",cfg:"[Ar] 3d¹⁰ 4s²",shells:[2,8,18,2],desc_de:"Verzinkung schützt vor Rost.",desc_en:"Galvanizing protects against rust."},
+  {n:31,s:"Ga",de:"Gallium",en:"Gallium",p:4,g:13,cat:"post-transition",phase:"solid",mass:69.723,en_p:1.81,r:136,ie:5.999,mp:302.91,bp:2673,dens:5.907,disc:1875,by:"Lecoq de Boisbaudran",block:"p",cfg:"[Ar] 3d¹⁰ 4s² 4p¹",shells:[2,8,18,3],desc_de:"Schmilzt in der Hand.",desc_en:"Melts in your hand."},
+  {n:32,s:"Ge",de:"Germanium",en:"Germanium",p:4,g:14,cat:"metalloid",phase:"solid",mass:72.630,en_p:2.01,r:125,ie:7.900,mp:1211.40,bp:3106,dens:5.323,disc:1886,by:"Winkler",block:"p",cfg:"[Ar] 3d¹⁰ 4s² 4p²",shells:[2,8,18,4],desc_de:"Halbleiter, in Glasfasern.",desc_en:"Semiconductor, used in fiber optics."},
+  {n:33,s:"As",de:"Arsen",en:"Arsenic",p:4,g:15,cat:"metalloid",phase:"solid",mass:74.922,en_p:2.18,r:114,ie:9.815,mp:1090,bp:887,dens:5.776,disc:1250,by:"Albertus Magnus",block:"p",cfg:"[Ar] 3d¹⁰ 4s² 4p³",shells:[2,8,18,5],desc_de:"Giftiges Halbmetall.",desc_en:"Toxic metalloid."},
+  {n:34,s:"Se",de:"Selen",en:"Selenium",p:4,g:16,cat:"nonmetal",phase:"solid",mass:78.971,en_p:2.55,r:103,ie:9.752,mp:494,bp:958,dens:4.809,disc:1817,by:"Berzelius",block:"p",cfg:"[Ar] 3d¹⁰ 4s² 4p⁴",shells:[2,8,18,6],desc_de:"Photoelektrische Eigenschaften.",desc_en:"Photoelectric properties."},
+  {n:35,s:"Br",de:"Brom",en:"Bromine",p:4,g:17,cat:"halogen",phase:"liquid",mass:79.904,en_p:2.96,r:94,ie:11.814,mp:265.8,bp:332,dens:3.122,disc:1826,by:"Balard",block:"p",cfg:"[Ar] 3d¹⁰ 4s² 4p⁵",shells:[2,8,18,7],desc_de:"Einziges flüssiges Nichtmetall bei Raumtemperatur.",desc_en:"Only nonmetal liquid at room temperature."},
+  {n:36,s:"Kr",de:"Krypton",en:"Krypton",p:4,g:18,cat:"noble-gas",phase:"gas",mass:83.798,en_p:3.00,r:88,ie:13.999,mp:115.78,bp:119.93,dens:0.003733,disc:1898,by:"Ramsay, Travers",block:"p",cfg:"[Ar] 3d¹⁰ 4s² 4p⁶",shells:[2,8,18,8],desc_de:"Edelgas, in Hochleistungslampen.",desc_en:"Noble gas, in high-performance lamps."},
+  {n:37,s:"Rb",de:"Rubidium",en:"Rubidium",p:5,g:1,cat:"alkali-metal",phase:"solid",mass:85.468,en_p:0.82,r:265,ie:4.177,mp:312.45,bp:961,dens:1.532,disc:1861,by:"Bunsen, Kirchhoff",block:"s",cfg:"[Kr] 5s¹",shells:[2,8,18,8,1],desc_de:"Reaktives Alkalimetall.",desc_en:"Reactive alkali metal."},
+  {n:38,s:"Sr",de:"Strontium",en:"Strontium",p:5,g:2,cat:"alkaline-earth",phase:"solid",mass:87.62,en_p:0.95,r:219,ie:5.695,mp:1050,bp:1655,dens:2.64,disc:1790,by:"Crawford, Cruickshank",block:"s",cfg:"[Kr] 5s²",shells:[2,8,18,8,2],desc_de:"Gibt Feuerwerk rote Farbe.",desc_en:"Gives fireworks red color."},
+  {n:39,s:"Y",de:"Yttrium",en:"Yttrium",p:5,g:3,cat:"transition-metal",phase:"solid",mass:88.906,en_p:1.22,r:212,ie:6.217,mp:1799,bp:3609,dens:4.469,disc:1794,by:"Gadolin",block:"d",cfg:"[Kr] 4d¹ 5s²",shells:[2,8,18,9,2],desc_de:"Seltenes Übergangsmetall.",desc_en:"Rare transition metal."},
+  {n:40,s:"Zr",de:"Zirconium",en:"Zirconium",p:5,g:4,cat:"transition-metal",phase:"solid",mass:91.224,en_p:1.33,r:206,ie:6.634,mp:2128,bp:4682,dens:6.506,disc:1789,by:"Klaproth",block:"d",cfg:"[Kr] 4d² 5s²",shells:[2,8,18,10,2],desc_de:"Korrosionsbeständig, in Kernreaktoren.",desc_en:"Corrosion-resistant, in nuclear reactors."},
+  {n:41,s:"Nb",de:"Niob",en:"Niobium",p:5,g:5,cat:"transition-metal",phase:"solid",mass:92.906,en_p:1.6,r:198,ie:6.759,mp:2750,bp:5017,dens:8.57,disc:1801,by:"Hatchett",block:"d",cfg:"[Kr] 4d⁴ 5s¹",shells:[2,8,18,12,1],desc_de:"Supraleiter, in Speziallegierungen.",desc_en:"Superconductor, in specialty alloys."},
+  {n:42,s:"Mo",de:"Molybdän",en:"Molybdenum",p:5,g:6,cat:"transition-metal",phase:"solid",mass:95.95,en_p:2.16,r:190,ie:7.092,mp:2896,bp:4912,dens:10.22,disc:1781,by:"Hjelm",block:"d",cfg:"[Kr] 4d⁵ 5s¹",shells:[2,8,18,13,1],desc_de:"Hoher Schmelzpunkt, in Stahllegierungen.",desc_en:"High melting point, in steel alloys."},
+  {n:43,s:"Tc",de:"Technetium",en:"Technetium",p:5,g:7,cat:"transition-metal",phase:"synthetic",mass:98,en_p:1.9,r:183,ie:7.28,mp:2430,bp:4538,dens:11.5,disc:1937,by:"Perrier, Segrè",block:"d",cfg:"[Kr] 4d⁵ 5s²",shells:[2,8,18,13,2],desc_de:"Erstes künstlich erzeugtes Element.",desc_en:"First artificially produced element."},
+  {n:44,s:"Ru",de:"Ruthenium",en:"Ruthenium",p:5,g:8,cat:"transition-metal",phase:"solid",mass:101.07,en_p:2.2,r:178,ie:7.361,mp:2607,bp:4423,dens:12.37,disc:1844,by:"Klaus",block:"d",cfg:"[Kr] 4d⁷ 5s¹",shells:[2,8,18,15,1],desc_de:"Platinmetall, in Elektronik.",desc_en:"Platinum group metal, in electronics."},
+  {n:45,s:"Rh",de:"Rhodium",en:"Rhodium",p:5,g:9,cat:"transition-metal",phase:"solid",mass:102.91,en_p:2.28,r:173,ie:7.459,mp:2237,bp:3968,dens:12.41,disc:1803,by:"Wollaston",block:"d",cfg:"[Kr] 4d⁸ 5s¹",shells:[2,8,18,16,1],desc_de:"Sehr selten, in Katalysatoren.",desc_en:"Very rare, in catalytic converters."},
+  {n:46,s:"Pd",de:"Palladium",en:"Palladium",p:5,g:10,cat:"transition-metal",phase:"solid",mass:106.42,en_p:2.20,r:169,ie:8.337,mp:1828.05,bp:3236,dens:12.02,disc:1803,by:"Wollaston",block:"d",cfg:"[Kr] 4d¹⁰",shells:[2,8,18,18],desc_de:"Edelmetall, in Abgaskatalysatoren.",desc_en:"Precious metal, in catalytic converters."},
+  {n:47,s:"Ag",de:"Silber",en:"Silver",p:5,g:11,cat:"transition-metal",phase:"solid",mass:107.87,en_p:1.93,r:165,ie:7.576,mp:1234.93,bp:2435,dens:10.501,disc:null,by:null,block:"d",cfg:"[Kr] 4d¹⁰ 5s¹",shells:[2,8,18,18,1],desc_de:"Bester elektrischer Leiter aller Metalle.",desc_en:"Best electrical conductor of all metals."},
+  {n:48,s:"Cd",de:"Cadmium",en:"Cadmium",p:5,g:12,cat:"transition-metal",phase:"solid",mass:112.41,en_p:1.69,r:161,ie:8.994,mp:594.22,bp:1040,dens:8.69,disc:1817,by:"Stromeyer",block:"d",cfg:"[Kr] 4d¹⁰ 5s²",shells:[2,8,18,18,2],desc_de:"Toxisch, in Akkus.",desc_en:"Toxic, in rechargeable batteries."},
+  {n:49,s:"In",de:"Indium",en:"Indium",p:5,g:13,cat:"post-transition",phase:"solid",mass:114.82,en_p:1.78,r:156,ie:5.786,mp:429.75,bp:2345,dens:7.31,disc:1863,by:"Reich, Richter",block:"p",cfg:"[Kr] 4d¹⁰ 5s² 5p¹",shells:[2,8,18,18,3],desc_de:"In Touchscreens (ITO).",desc_en:"In touchscreens (ITO)."},
+  {n:50,s:"Sn",de:"Zinn",en:"Tin",p:5,g:14,cat:"post-transition",phase:"solid",mass:118.71,en_p:1.96,r:145,ie:7.344,mp:505.08,bp:2875,dens:7.287,disc:null,by:null,block:"p",cfg:"[Kr] 4d¹⁰ 5s² 5p²",shells:[2,8,18,18,4],desc_de:"Antike Bronze-Komponente, in Lötzinn.",desc_en:"Ancient bronze component, in solder."},
+  {n:51,s:"Sb",de:"Antimon",en:"Antimony",p:5,g:15,cat:"metalloid",phase:"solid",mass:121.76,en_p:2.05,r:133,ie:8.640,mp:903.78,bp:1860,dens:6.685,disc:null,by:null,block:"p",cfg:"[Kr] 4d¹⁰ 5s² 5p³",shells:[2,8,18,18,5],desc_de:"Halbmetall, in Flammschutzmitteln.",desc_en:"Metalloid, in flame retardants."},
+  {n:52,s:"Te",de:"Tellur",en:"Tellurium",p:5,g:16,cat:"metalloid",phase:"solid",mass:127.60,en_p:2.1,r:123,ie:9.010,mp:722.66,bp:1261,dens:6.232,disc:1782,by:"von Reichenstein",block:"p",cfg:"[Kr] 4d¹⁰ 5s² 5p⁴",shells:[2,8,18,18,6],desc_de:"Selten, in Solarzellen.",desc_en:"Rare, in solar cells."},
+  {n:53,s:"I",de:"Iod",en:"Iodine",p:5,g:17,cat:"halogen",phase:"solid",mass:126.90,en_p:2.66,r:115,ie:10.451,mp:386.85,bp:457.4,dens:4.93,disc:1811,by:"Courtois",block:"p",cfg:"[Kr] 4d¹⁰ 5s² 5p⁵",shells:[2,8,18,18,7],desc_de:"Essentiell für Schilddrüsenhormone.",desc_en:"Essential for thyroid hormones."},
+  {n:54,s:"Xe",de:"Xenon",en:"Xenon",p:5,g:18,cat:"noble-gas",phase:"gas",mass:131.29,en_p:2.6,r:108,ie:12.130,mp:161.4,bp:165.051,dens:0.005887,disc:1898,by:"Ramsay, Travers",block:"p",cfg:"[Kr] 4d¹⁰ 5s² 5p⁶",shells:[2,8,18,18,8],desc_de:"Schweres Edelgas, in Hochleistungslampen.",desc_en:"Heavy noble gas, in high-intensity lamps."},
+  {n:55,s:"Cs",de:"Caesium",en:"Cesium",p:6,g:1,cat:"alkali-metal",phase:"solid",mass:132.91,en_p:0.79,r:298,ie:3.894,mp:301.7,bp:944,dens:1.873,disc:1860,by:"Bunsen, Kirchhoff",block:"s",cfg:"[Xe] 6s¹",shells:[2,8,18,18,8,1],desc_de:"Atomuhr-Standard, definiert die Sekunde.",desc_en:"Atomic clock standard, defines the second."},
+  {n:56,s:"Ba",de:"Barium",en:"Barium",p:6,g:2,cat:"alkaline-earth",phase:"solid",mass:137.33,en_p:0.89,r:253,ie:5.212,mp:1000,bp:2118,dens:3.594,disc:1808,by:"Davy",block:"s",cfg:"[Xe] 6s²",shells:[2,8,18,18,8,2],desc_de:"In Röntgenkontrastmitteln.",desc_en:"In X-ray contrast agents."},
+  {n:57,s:"La",de:"Lanthan",en:"Lanthanum",p:6,g:3,cat:"lanthanide",phase:"solid",mass:138.91,en_p:1.10,r:226,ie:5.577,mp:1193,bp:3737,dens:6.145,disc:1839,by:"Mosander",block:"d",cfg:"[Xe] 5d¹ 6s²",shells:[2,8,18,18,9,2],desc_de:"Erstes Element der Lanthanoide.",desc_en:"First element of the lanthanides."},
+  {n:58,s:"Ce",de:"Cer",en:"Cerium",p:6,g:3,cat:"lanthanide",phase:"solid",mass:140.12,en_p:1.12,r:210,ie:5.539,mp:1068,bp:3716,dens:6.770,disc:1803,by:"Berzelius, Hisinger, Klaproth",block:"f",cfg:"[Xe] 4f¹ 5d¹ 6s²",shells:[2,8,18,19,9,2],desc_de:"Häufigstes Lanthanoid.",desc_en:"Most abundant lanthanide."},
+  {n:59,s:"Pr",de:"Praseodym",en:"Praseodymium",p:6,g:3,cat:"lanthanide",phase:"solid",mass:140.91,en_p:1.13,r:247,ie:5.473,mp:1208,bp:3793,dens:6.773,disc:1885,by:"von Welsbach",block:"f",cfg:"[Xe] 4f³ 6s²",shells:[2,8,18,21,8,2],desc_de:"In starken Magneten.",desc_en:"In strong magnets."},
+  {n:60,s:"Nd",de:"Neodym",en:"Neodymium",p:6,g:3,cat:"lanthanide",phase:"solid",mass:144.24,en_p:1.14,r:206,ie:5.525,mp:1297,bp:3347,dens:7.007,disc:1885,by:"von Welsbach",block:"f",cfg:"[Xe] 4f⁴ 6s²",shells:[2,8,18,22,8,2],desc_de:"Stärkste Permanentmagnete.",desc_en:"Strongest permanent magnets."},
+  {n:61,s:"Pm",de:"Promethium",en:"Promethium",p:6,g:3,cat:"lanthanide",phase:"synthetic",mass:145,en_p:1.13,r:205,ie:5.582,mp:1315,bp:3273,dens:7.26,disc:1945,by:"Marinsky et al.",block:"f",cfg:"[Xe] 4f⁵ 6s²",shells:[2,8,18,23,8,2],desc_de:"Radioaktiv, alle Isotope instabil.",desc_en:"Radioactive, all isotopes unstable."},
+  {n:62,s:"Sm",de:"Samarium",en:"Samarium",p:6,g:3,cat:"lanthanide",phase:"solid",mass:150.36,en_p:1.17,r:238,ie:5.644,mp:1345,bp:2067,dens:7.52,disc:1879,by:"Lecoq de Boisbaudran",block:"f",cfg:"[Xe] 4f⁶ 6s²",shells:[2,8,18,24,8,2],desc_de:"In Magneten und Kernreaktoren.",desc_en:"In magnets and nuclear reactors."},
+  {n:63,s:"Eu",de:"Europium",en:"Europium",p:6,g:3,cat:"lanthanide",phase:"solid",mass:151.96,en_p:1.2,r:231,ie:5.670,mp:1099,bp:1802,dens:5.243,disc:1901,by:"Demarçay",block:"f",cfg:"[Xe] 4f⁷ 6s²",shells:[2,8,18,25,8,2],desc_de:"In Leuchtstoffröhren, rote Farbe.",desc_en:"In phosphors, red color."},
+  {n:64,s:"Gd",de:"Gadolinium",en:"Gadolinium",p:6,g:3,cat:"lanthanide",phase:"solid",mass:157.25,en_p:1.20,r:233,ie:6.150,mp:1585,bp:3546,dens:7.895,disc:1880,by:"de Marignac",block:"f",cfg:"[Xe] 4f⁷ 5d¹ 6s²",shells:[2,8,18,25,9,2],desc_de:"In MRT-Kontrastmitteln.",desc_en:"In MRI contrast agents."},
+  {n:65,s:"Tb",de:"Terbium",en:"Terbium",p:6,g:3,cat:"lanthanide",phase:"solid",mass:158.93,en_p:1.2,r:225,ie:5.864,mp:1629,bp:3503,dens:8.229,disc:1843,by:"Mosander",block:"f",cfg:"[Xe] 4f⁹ 6s²",shells:[2,8,18,27,8,2],desc_de:"In Leuchtstoffen.",desc_en:"In phosphors."},
+  {n:66,s:"Dy",de:"Dysprosium",en:"Dysprosium",p:6,g:3,cat:"lanthanide",phase:"solid",mass:162.50,en_p:1.22,r:228,ie:5.939,mp:1680,bp:2840,dens:8.55,disc:1886,by:"Lecoq de Boisbaudran",block:"f",cfg:"[Xe] 4f¹⁰ 6s²",shells:[2,8,18,28,8,2],desc_de:"In Hochleistungsmagneten.",desc_en:"In high-performance magnets."},
+  {n:67,s:"Ho",de:"Holmium",en:"Holmium",p:6,g:3,cat:"lanthanide",phase:"solid",mass:164.93,en_p:1.23,r:226,ie:6.022,mp:1734,bp:2993,dens:8.795,disc:1878,by:"Cleve",block:"f",cfg:"[Xe] 4f¹¹ 6s²",shells:[2,8,18,29,8,2],desc_de:"Höchstes magnetisches Moment aller Elemente.",desc_en:"Highest magnetic moment of any element."},
+  {n:68,s:"Er",de:"Erbium",en:"Erbium",p:6,g:3,cat:"lanthanide",phase:"solid",mass:167.26,en_p:1.24,r:226,ie:6.108,mp:1802,bp:3141,dens:9.066,disc:1843,by:"Mosander",block:"f",cfg:"[Xe] 4f¹² 6s²",shells:[2,8,18,30,8,2],desc_de:"In Glasfasern als Verstärker.",desc_en:"In fiber optic amplifiers."},
+  {n:69,s:"Tm",de:"Thulium",en:"Thulium",p:6,g:3,cat:"lanthanide",phase:"solid",mass:168.93,en_p:1.25,r:222,ie:6.184,mp:1818,bp:2223,dens:9.321,disc:1879,by:"Cleve",block:"f",cfg:"[Xe] 4f¹³ 6s²",shells:[2,8,18,31,8,2],desc_de:"Seltenstes der Lanthanoide.",desc_en:"Rarest of the lanthanides."},
+  {n:70,s:"Yb",de:"Ytterbium",en:"Ytterbium",p:6,g:3,cat:"lanthanide",phase:"solid",mass:173.05,en_p:1.1,r:222,ie:6.254,mp:1097,bp:1469,dens:6.965,disc:1878,by:"de Marignac",block:"f",cfg:"[Xe] 4f¹⁴ 6s²",shells:[2,8,18,32,8,2],desc_de:"In Atomuhren der nächsten Generation.",desc_en:"In next-generation atomic clocks."},
+  {n:71,s:"Lu",de:"Lutetium",en:"Lutetium",p:6,g:3,cat:"lanthanide",phase:"solid",mass:174.97,en_p:1.27,r:217,ie:5.426,mp:1925,bp:3675,dens:9.84,disc:1907,by:"Urbain, von Welsbach",block:"d",cfg:"[Xe] 4f¹⁴ 5d¹ 6s²",shells:[2,8,18,32,9,2],desc_de:"Letztes Lanthanoid, sehr dicht.",desc_en:"Last lanthanide, very dense."},
+  {n:72,s:"Hf",de:"Hafnium",en:"Hafnium",p:6,g:4,cat:"transition-metal",phase:"solid",mass:178.49,en_p:1.3,r:208,ie:6.825,mp:2506,bp:4876,dens:13.31,disc:1923,by:"Coster, Hevesy",block:"d",cfg:"[Xe] 4f¹⁴ 5d² 6s²",shells:[2,8,18,32,10,2],desc_de:"In Kernreaktoren als Steuerstäbe.",desc_en:"In nuclear control rods."},
+  {n:73,s:"Ta",de:"Tantal",en:"Tantalum",p:6,g:5,cat:"transition-metal",phase:"solid",mass:180.95,en_p:1.5,r:200,ie:7.550,mp:3290,bp:5731,dens:16.654,disc:1802,by:"Ekeberg",block:"d",cfg:"[Xe] 4f¹⁴ 5d³ 6s²",shells:[2,8,18,32,11,2],desc_de:"In Kondensatoren für Elektronik.",desc_en:"In capacitors for electronics."},
+  {n:74,s:"W",de:"Wolfram",en:"Tungsten",p:6,g:6,cat:"transition-metal",phase:"solid",mass:183.84,en_p:2.36,r:193,ie:7.864,mp:3695,bp:6203,dens:19.25,disc:1783,by:"de Elhuyar",block:"d",cfg:"[Xe] 4f¹⁴ 5d⁴ 6s²",shells:[2,8,18,32,12,2],desc_de:"Höchster Schmelzpunkt aller Metalle.",desc_en:"Highest melting point of all metals."},
+  {n:75,s:"Re",de:"Rhenium",en:"Rhenium",p:6,g:7,cat:"transition-metal",phase:"solid",mass:186.21,en_p:1.9,r:188,ie:7.834,mp:3459,bp:5869,dens:21.02,disc:1925,by:"Noddack, Tacke, Berg",block:"d",cfg:"[Xe] 4f¹⁴ 5d⁵ 6s²",shells:[2,8,18,32,13,2],desc_de:"Eines der seltensten Elemente.",desc_en:"One of the rarest elements."},
+  {n:76,s:"Os",de:"Osmium",en:"Osmium",p:6,g:8,cat:"transition-metal",phase:"solid",mass:190.23,en_p:2.2,r:185,ie:8.438,mp:3306,bp:5285,dens:22.59,disc:1803,by:"Tennant",block:"d",cfg:"[Xe] 4f¹⁴ 5d⁶ 6s²",shells:[2,8,18,32,14,2],desc_de:"Dichtestes natürliche vorkommendes Element.",desc_en:"Densest naturally occurring element."},
+  {n:77,s:"Ir",de:"Iridium",en:"Iridium",p:6,g:9,cat:"transition-metal",phase:"solid",mass:192.22,en_p:2.20,r:180,ie:8.967,mp:2719,bp:4403,dens:22.56,disc:1803,by:"Tennant",block:"d",cfg:"[Xe] 4f¹⁴ 5d⁷ 6s²",shells:[2,8,18,32,15,2],desc_de:"Korrosionsbeständigstes Metall.",desc_en:"Most corrosion-resistant metal."},
+  {n:78,s:"Pt",de:"Platin",en:"Platinum",p:6,g:10,cat:"transition-metal",phase:"solid",mass:195.08,en_p:2.28,r:177,ie:8.959,mp:2041.4,bp:4098,dens:21.45,disc:1735,by:"de Ulloa",block:"d",cfg:"[Xe] 4f¹⁴ 5d⁹ 6s¹",shells:[2,8,18,32,17,1],desc_de:"Edelmetall, in Katalysatoren und Schmuck.",desc_en:"Precious metal, in catalysts and jewelry."},
+  {n:79,s:"Au",de:"Gold",en:"Gold",p:6,g:11,cat:"transition-metal",phase:"solid",mass:196.97,en_p:2.54,r:174,ie:9.226,mp:1337.33,bp:3243,dens:19.282,disc:null,by:null,block:"d",cfg:"[Xe] 4f¹⁴ 5d¹⁰ 6s¹",shells:[2,8,18,32,18,1],desc_de:"Edelstes Metall, sehr duktil.",desc_en:"Most noble metal, very ductile."},
+  {n:80,s:"Hg",de:"Quecksilber",en:"Mercury",p:6,g:12,cat:"transition-metal",phase:"liquid",mass:200.59,en_p:2.00,r:171,ie:10.438,mp:234.32,bp:629.88,dens:13.534,disc:null,by:null,block:"d",cfg:"[Xe] 4f¹⁴ 5d¹⁰ 6s²",shells:[2,8,18,32,18,2],desc_de:"Einziges flüssiges Metall bei Raumtemperatur.",desc_en:"Only liquid metal at room temperature."},
+  {n:81,s:"Tl",de:"Thallium",en:"Thallium",p:6,g:13,cat:"post-transition",phase:"solid",mass:204.38,en_p:1.62,r:156,ie:6.108,mp:577,bp:1746,dens:11.85,disc:1861,by:"Crookes",block:"p",cfg:"[Xe] 4f¹⁴ 5d¹⁰ 6s² 6p¹",shells:[2,8,18,32,18,3],desc_de:"Stark giftig, früher als Rattengift.",desc_en:"Highly toxic, formerly used as rat poison."},
+  {n:82,s:"Pb",de:"Blei",en:"Lead",p:6,g:14,cat:"post-transition",phase:"solid",mass:207.2,en_p:1.87,r:154,ie:7.417,mp:600.61,bp:2022,dens:11.342,disc:null,by:null,block:"p",cfg:"[Xe] 4f¹⁴ 5d¹⁰ 6s² 6p²",shells:[2,8,18,32,18,4],desc_de:"Schweres giftiges Metall.",desc_en:"Heavy toxic metal."},
+  {n:83,s:"Bi",de:"Bismut",en:"Bismuth",p:6,g:15,cat:"post-transition",phase:"solid",mass:208.98,en_p:2.02,r:143,ie:7.286,mp:544.7,bp:1837,dens:9.807,disc:1753,by:"Geoffroy",block:"p",cfg:"[Xe] 4f¹⁴ 5d¹⁰ 6s² 6p³",shells:[2,8,18,32,18,5],desc_de:"Schwerstes stabiles Element (lange angenommen).",desc_en:"Heaviest stable element (long assumed)."},
+  {n:84,s:"Po",de:"Polonium",en:"Polonium",p:6,g:16,cat:"post-transition",phase:"solid",mass:209,en_p:2.0,r:135,ie:8.417,mp:527,bp:1235,dens:9.32,disc:1898,by:"Curie",block:"p",cfg:"[Xe] 4f¹⁴ 5d¹⁰ 6s² 6p⁴",shells:[2,8,18,32,18,6],desc_de:"Radioaktiv, entdeckt von Marie Curie.",desc_en:"Radioactive, discovered by Marie Curie."},
+  {n:85,s:"At",de:"Astat",en:"Astatine",p:6,g:17,cat:"halogen",phase:"solid",mass:210,en_p:2.2,r:127,ie:9.318,mp:575,bp:610,dens:7,disc:1940,by:"Corson, MacKenzie, Segrè",block:"p",cfg:"[Xe] 4f¹⁴ 5d¹⁰ 6s² 6p⁵",shells:[2,8,18,32,18,7],desc_de:"Seltenstes natürlich vorkommendes Element.",desc_en:"Rarest naturally occurring element."},
+  {n:86,s:"Rn",de:"Radon",en:"Radon",p:6,g:18,cat:"noble-gas",phase:"gas",mass:222,en_p:2.2,r:120,ie:10.749,mp:202,bp:211.5,dens:0.00973,disc:1900,by:"Dorn",block:"p",cfg:"[Xe] 4f¹⁴ 5d¹⁰ 6s² 6p⁶",shells:[2,8,18,32,18,8],desc_de:"Radioaktives Edelgas, in Kellern problematisch.",desc_en:"Radioactive noble gas, problematic in basements."},
+  {n:87,s:"Fr",de:"Francium",en:"Francium",p:7,g:1,cat:"alkali-metal",phase:"solid",mass:223,en_p:0.7,r:348,ie:4.073,mp:300,bp:950,dens:1.87,disc:1939,by:"Perey",block:"s",cfg:"[Rn] 7s¹",shells:[2,8,18,32,18,8,1],desc_de:"Schwerstes Alkalimetall, extrem radioaktiv.",desc_en:"Heaviest alkali metal, extremely radioactive."},
+  {n:88,s:"Ra",de:"Radium",en:"Radium",p:7,g:2,cat:"alkaline-earth",phase:"solid",mass:226,en_p:0.9,r:283,ie:5.279,mp:973,bp:2010,dens:5.5,disc:1898,by:"Curie",block:"s",cfg:"[Rn] 7s²",shells:[2,8,18,32,18,8,2],desc_de:"Radioaktiv, entdeckt von Marie und Pierre Curie.",desc_en:"Radioactive, discovered by Marie and Pierre Curie."},
+  {n:89,s:"Ac",de:"Actinium",en:"Actinium",p:7,g:3,cat:"actinide",phase:"solid",mass:227,en_p:1.1,r:260,ie:5.17,mp:1323,bp:3471,dens:10.07,disc:1899,by:"Debierne",block:"d",cfg:"[Rn] 6d¹ 7s²",shells:[2,8,18,32,18,9,2],desc_de:"Erstes Actinoid, radioaktiv.",desc_en:"First actinide, radioactive."},
+  {n:90,s:"Th",de:"Thorium",en:"Thorium",p:7,g:3,cat:"actinide",phase:"solid",mass:232.04,en_p:1.3,r:237,ie:6.307,mp:2115,bp:5061,dens:11.72,disc:1828,by:"Berzelius",block:"f",cfg:"[Rn] 6d² 7s²",shells:[2,8,18,32,18,10,2],desc_de:"Potenzieller Kernbrennstoff.",desc_en:"Potential nuclear fuel."},
+  {n:91,s:"Pa",de:"Protactinium",en:"Protactinium",p:7,g:3,cat:"actinide",phase:"solid",mass:231.04,en_p:1.5,r:243,ie:5.89,mp:1841,bp:4300,dens:15.37,disc:1913,by:"Fajans, Göhring",block:"f",cfg:"[Rn] 5f² 6d¹ 7s²",shells:[2,8,18,32,20,9,2],desc_de:"Selten und sehr radioaktiv.",desc_en:"Rare and highly radioactive."},
+  {n:92,s:"U",de:"Uran",en:"Uranium",p:7,g:3,cat:"actinide",phase:"solid",mass:238.03,en_p:1.38,r:240,ie:6.194,mp:1405.3,bp:4404,dens:18.95,disc:1789,by:"Klaproth",block:"f",cfg:"[Rn] 5f³ 6d¹ 7s²",shells:[2,8,18,32,21,9,2],desc_de:"Hauptbrennstoff in Kernreaktoren.",desc_en:"Primary fuel in nuclear reactors."},
+  {n:93,s:"Np",de:"Neptunium",en:"Neptunium",p:7,g:3,cat:"actinide",phase:"synthetic",mass:237,en_p:1.36,r:221,ie:6.266,mp:917,bp:4273,dens:20.45,disc:1940,by:"McMillan, Abelson",block:"f",cfg:"[Rn] 5f⁴ 6d¹ 7s²",shells:[2,8,18,32,22,9,2],desc_de:"Erstes Transuran.",desc_en:"First transuranic element."},
+  {n:94,s:"Pu",de:"Plutonium",en:"Plutonium",p:7,g:3,cat:"actinide",phase:"synthetic",mass:244,en_p:1.28,r:243,ie:6.026,mp:912.5,bp:3501,dens:19.84,disc:1940,by:"Seaborg et al.",block:"f",cfg:"[Rn] 5f⁶ 7s²",shells:[2,8,18,32,24,8,2],desc_de:"Spaltbar, in Kernwaffen und Reaktoren.",desc_en:"Fissile, used in nuclear weapons and reactors."},
+  {n:95,s:"Am",de:"Americium",en:"Americium",p:7,g:3,cat:"actinide",phase:"synthetic",mass:243,en_p:1.13,r:244,ie:5.974,mp:1449,bp:2880,dens:13.69,disc:1944,by:"Seaborg et al.",block:"f",cfg:"[Rn] 5f⁷ 7s²",shells:[2,8,18,32,25,8,2],desc_de:"In Rauchmeldern verwendet.",desc_en:"Used in smoke detectors."},
+  {n:96,s:"Cm",de:"Curium",en:"Curium",p:7,g:3,cat:"actinide",phase:"synthetic",mass:247,en_p:1.28,r:245,ie:5.991,mp:1613,bp:3383,dens:13.51,disc:1944,by:"Seaborg et al.",block:"f",cfg:"[Rn] 5f⁷ 6d¹ 7s²",shells:[2,8,18,32,25,9,2],desc_de:"Benannt nach Marie und Pierre Curie.",desc_en:"Named after Marie and Pierre Curie."},
+  {n:97,s:"Bk",de:"Berkelium",en:"Berkelium",p:7,g:3,cat:"actinide",phase:"synthetic",mass:247,en_p:1.3,r:244,ie:6.198,mp:1259,bp:2900,dens:14.79,disc:1949,by:"Thompson, Ghiorso, Seaborg",block:"f",cfg:"[Rn] 5f⁹ 7s²",shells:[2,8,18,32,27,8,2],desc_de:"Benannt nach Berkeley, Kalifornien.",desc_en:"Named after Berkeley, California."},
+  {n:98,s:"Cf",de:"Californium",en:"Californium",p:7,g:3,cat:"actinide",phase:"synthetic",mass:251,en_p:1.3,r:245,ie:6.282,mp:1173,bp:1743,dens:15.1,disc:1950,by:"Thompson, Street, Ghiorso, Seaborg",block:"f",cfg:"[Rn] 5f¹⁰ 7s²",shells:[2,8,18,32,28,8,2],desc_de:"Starker Neutronenemitter.",desc_en:"Strong neutron emitter."},
+  {n:99,s:"Es",de:"Einsteinium",en:"Einsteinium",p:7,g:3,cat:"actinide",phase:"synthetic",mass:252,en_p:1.3,r:245,ie:6.42,mp:1133,bp:1269,dens:8.84,disc:1952,by:"Ghiorso et al.",block:"f",cfg:"[Rn] 5f¹¹ 7s²",shells:[2,8,18,32,29,8,2],desc_de:"Benannt nach Albert Einstein.",desc_en:"Named after Albert Einstein."},
+  {n:100,s:"Fm",de:"Fermium",en:"Fermium",p:7,g:3,cat:"actinide",phase:"synthetic",mass:257,en_p:1.3,r:null,ie:6.50,mp:1800,bp:null,dens:null,disc:1952,by:"Ghiorso et al.",block:"f",cfg:"[Rn] 5f¹² 7s²",shells:[2,8,18,32,30,8,2],desc_de:"Benannt nach Enrico Fermi.",desc_en:"Named after Enrico Fermi."},
+  {n:101,s:"Md",de:"Mendelevium",en:"Mendelevium",p:7,g:3,cat:"actinide",phase:"synthetic",mass:258,en_p:1.3,r:null,ie:6.58,mp:1100,bp:null,dens:null,disc:1955,by:"Ghiorso et al.",block:"f",cfg:"[Rn] 5f¹³ 7s²",shells:[2,8,18,32,31,8,2],desc_de:"Benannt nach Dmitri Mendelejew.",desc_en:"Named after Dmitri Mendeleev."},
+  {n:102,s:"No",de:"Nobelium",en:"Nobelium",p:7,g:3,cat:"actinide",phase:"synthetic",mass:259,en_p:1.3,r:null,ie:6.65,mp:1100,bp:null,dens:null,disc:1966,by:"JINR",block:"f",cfg:"[Rn] 5f¹⁴ 7s²",shells:[2,8,18,32,32,8,2],desc_de:"Benannt nach Alfred Nobel.",desc_en:"Named after Alfred Nobel."},
+  {n:103,s:"Lr",de:"Lawrencium",en:"Lawrencium",p:7,g:3,cat:"actinide",phase:"synthetic",mass:266,en_p:1.3,r:null,ie:4.96,mp:1900,bp:null,dens:null,disc:1961,by:"LBL",block:"d",cfg:"[Rn] 5f¹⁴ 7s² 7p¹",shells:[2,8,18,32,32,8,3],desc_de:"Letztes Actinoid.",desc_en:"Last actinide."},
+  {n:104,s:"Rf",de:"Rutherfordium",en:"Rutherfordium",p:7,g:4,cat:"transition-metal",phase:"synthetic",mass:267,en_p:null,r:null,ie:6.02,mp:2400,bp:5800,dens:23.2,disc:1964,by:"JINR/LBL",block:"d",cfg:"[Rn] 5f¹⁴ 6d² 7s²",shells:[2,8,18,32,32,10,2],desc_de:"Erstes Transactinoid.",desc_en:"First transactinide."},
+  {n:105,s:"Db",de:"Dubnium",en:"Dubnium",p:7,g:5,cat:"transition-metal",phase:"synthetic",mass:268,en_p:null,r:null,ie:null,mp:null,bp:null,dens:29.3,disc:1968,by:"JINR/LBL",block:"d",cfg:"[Rn] 5f¹⁴ 6d³ 7s²",shells:[2,8,18,32,32,11,2],desc_de:"Benannt nach Dubna, Russland.",desc_en:"Named after Dubna, Russia."},
+  {n:106,s:"Sg",de:"Seaborgium",en:"Seaborgium",p:7,g:6,cat:"transition-metal",phase:"synthetic",mass:269,en_p:null,r:null,ie:null,mp:null,bp:null,dens:35.0,disc:1974,by:"LBL/JINR",block:"d",cfg:"[Rn] 5f¹⁴ 6d⁴ 7s²",shells:[2,8,18,32,32,12,2],desc_de:"Benannt nach Glenn Seaborg.",desc_en:"Named after Glenn Seaborg."},
+  {n:107,s:"Bh",de:"Bohrium",en:"Bohrium",p:7,g:7,cat:"transition-metal",phase:"synthetic",mass:270,en_p:null,r:null,ie:null,mp:null,bp:null,dens:37.1,disc:1981,by:"GSI",block:"d",cfg:"[Rn] 5f¹⁴ 6d⁵ 7s²",shells:[2,8,18,32,32,13,2],desc_de:"Benannt nach Niels Bohr.",desc_en:"Named after Niels Bohr."},
+  {n:108,s:"Hs",de:"Hassium",en:"Hassium",p:7,g:8,cat:"transition-metal",phase:"synthetic",mass:269,en_p:null,r:null,ie:null,mp:null,bp:null,dens:40.7,disc:1984,by:"GSI",block:"d",cfg:"[Rn] 5f¹⁴ 6d⁶ 7s²",shells:[2,8,18,32,32,14,2],desc_de:"Benannt nach Hessen.",desc_en:"Named after Hesse, Germany."},
+  {n:109,s:"Mt",de:"Meitnerium",en:"Meitnerium",p:7,g:9,cat:"unknown",phase:"synthetic",mass:278,en_p:null,r:null,ie:null,mp:null,bp:null,dens:37.4,disc:1982,by:"GSI",block:"d",cfg:"[Rn] 5f¹⁴ 6d⁷ 7s²",shells:[2,8,18,32,32,15,2],desc_de:"Benannt nach Lise Meitner.",desc_en:"Named after Lise Meitner."},
+  {n:110,s:"Ds",de:"Darmstadtium",en:"Darmstadtium",p:7,g:10,cat:"unknown",phase:"synthetic",mass:281,en_p:null,r:null,ie:null,mp:null,bp:null,dens:34.8,disc:1994,by:"GSI",block:"d",cfg:"[Rn] 5f¹⁴ 6d⁸ 7s²",shells:[2,8,18,32,32,16,2],desc_de:"Benannt nach Darmstadt.",desc_en:"Named after Darmstadt, Germany."},
+  {n:111,s:"Rg",de:"Roentgenium",en:"Roentgenium",p:7,g:11,cat:"unknown",phase:"synthetic",mass:282,en_p:null,r:null,ie:null,mp:null,bp:null,dens:28.7,disc:1994,by:"GSI",block:"d",cfg:"[Rn] 5f¹⁴ 6d⁹ 7s²",shells:[2,8,18,32,32,17,2],desc_de:"Benannt nach Wilhelm Conrad Röntgen.",desc_en:"Named after Wilhelm Röntgen."},
+  {n:112,s:"Cn",de:"Copernicium",en:"Copernicium",p:7,g:12,cat:"unknown",phase:"synthetic",mass:285,en_p:null,r:null,ie:null,mp:null,bp:357,dens:23.7,disc:1996,by:"GSI",block:"d",cfg:"[Rn] 5f¹⁴ 6d¹⁰ 7s²",shells:[2,8,18,32,32,18,2],desc_de:"Benannt nach Nikolaus Kopernikus.",desc_en:"Named after Nicolaus Copernicus."},
+  {n:113,s:"Nh",de:"Nihonium",en:"Nihonium",p:7,g:13,cat:"unknown",phase:"synthetic",mass:286,en_p:null,r:null,ie:null,mp:700,bp:1430,dens:16,disc:2004,by:"RIKEN",block:"p",cfg:"[Rn] 5f¹⁴ 6d¹⁰ 7s² 7p¹",shells:[2,8,18,32,32,18,3],desc_de:"Erstes in Japan entdecktes Element.",desc_en:"First element discovered in Japan."},
+  {n:114,s:"Fl",de:"Flerovium",en:"Flerovium",p:7,g:14,cat:"unknown",phase:"synthetic",mass:289,en_p:null,r:null,ie:null,mp:340,bp:420,dens:14,disc:1998,by:"JINR",block:"p",cfg:"[Rn] 5f¹⁴ 6d¹⁰ 7s² 7p²",shells:[2,8,18,32,32,18,4],desc_de:"Benannt nach Georgi Fljorow.",desc_en:"Named after Georgy Flyorov."},
+  {n:115,s:"Mc",de:"Moscovium",en:"Moscovium",p:7,g:15,cat:"unknown",phase:"synthetic",mass:290,en_p:null,r:null,ie:null,mp:700,bp:1400,dens:13.5,disc:2003,by:"JINR/LLNL",block:"p",cfg:"[Rn] 5f¹⁴ 6d¹⁰ 7s² 7p³",shells:[2,8,18,32,32,18,5],desc_de:"Benannt nach Moskau.",desc_en:"Named after Moscow."},
+  {n:116,s:"Lv",de:"Livermorium",en:"Livermorium",p:7,g:16,cat:"unknown",phase:"synthetic",mass:293,en_p:null,r:null,ie:null,mp:709,bp:1085,dens:12.9,disc:2000,by:"JINR/LLNL",block:"p",cfg:"[Rn] 5f¹⁴ 6d¹⁰ 7s² 7p⁴",shells:[2,8,18,32,32,18,6],desc_de:"Benannt nach Livermore Lab.",desc_en:"Named after Livermore Lab."},
+  {n:117,s:"Ts",de:"Tenness",en:"Tennessine",p:7,g:17,cat:"unknown",phase:"synthetic",mass:294,en_p:null,r:null,ie:null,mp:723,bp:883,dens:7.2,disc:2010,by:"JINR/ORNL",block:"p",cfg:"[Rn] 5f¹⁴ 6d¹⁰ 7s² 7p⁵",shells:[2,8,18,32,32,18,7],desc_de:"Benannt nach Tennessee.",desc_en:"Named after Tennessee."},
+  {n:118,s:"Og",de:"Oganesson",en:"Oganesson",p:7,g:18,cat:"unknown",phase:"synthetic",mass:294,en_p:null,r:null,ie:null,mp:325,bp:450,dens:5,disc:2002,by:"JINR/LLNL",block:"p",cfg:"[Rn] 5f¹⁴ 6d¹⁰ 7s² 7p⁶",shells:[2,8,18,32,32,18,8],desc_de:"Schwerstes bekanntes Element.",desc_en:"Heaviest known element."}
+];
+
+// Categories list (for legend)
+const CATEGORIES = [
+  "alkali-metal", "alkaline-earth", "transition-metal", "post-transition",
+  "metalloid", "nonmetal", "halogen", "noble-gas", "lanthanide", "actinide", "unknown"
+];
+
+// Grid positions: row, col (1-based, 18 cols)
+// Lanthanides on row 8, Actinides on row 9, with markers in row 6/7 col 3
+function getGridPos(el) {
+  // Lanthanides 57-71 -> row 8, cols 3-17
+  if (el.n >= 57 && el.n <= 71) {
+    return { row: 8, col: 3 + (el.n - 57) };
+  }
+  // Actinides 89-103 -> row 9, cols 3-17
+  if (el.n >= 89 && el.n <= 103) {
+    return { row: 9, col: 3 + (el.n - 89) };
+  }
+  // For period 6: La (57) is moved to row 8, but Hf (72) onwards stays at row 6
+  // For period 7: Ac (89) moved to row 9, Rf (104) onwards at row 7
+  return { row: el.p, col: el.g };
+}
+
+// ============================================================
+// STATE
+// ============================================================
+// Synthetic elements: Tc(43), Pm(61), and all 93-118
+const SYNTHETIC_ELEMENTS = new Set([43,61,93,94,95,96,97,98,99,100,101,102,103,104,105,106,107,108,109,110,111,112,113,114,115,116,117,118]);
+const getPhase = (el) => el.phase === "synthetic" ? "solid" : el.phase;
+const getOcc   = (el) => SYNTHETIC_ELEMENTS.has(el.n) ? "synthetic" : "natural";
+
+// Element significance (science / technology / industry) — DE and EN
+const ELEM_USE = {
+de:{
+1:"Brennstoffzellen; Haber-Bosch-Prozess (Ammoniak/Düngemittel); Raketenantrieb; Grundstoff der Wasserstoffwirtschaft.",
+2:"Supraleiter-Kühlung (MRT, Teilchenbeschleuniger); Tieftauch-Atemgas (He/O₂); Inertgas für die Analytik.",
+3:"Li-Ionen-Akkus (E-Mobilität, Smartphones); Lithiumsalze (Psychiatrie); Leichtbaulegierungen (Luft- und Raumfahrt).",
+4:"Röntgenfenster (niedrige Absorption); Luft- und Raumfahrtstrukturen; Kernreaktorreflektor; Neutronenquelle.",
+5:"Borsilikatglas (Pyrex); Kernreaktorsteuerstäbe; Halbleiterdotierung; Borax (Feuerhemmung, Waschmittel).",
+6:"Kohlenstofffasern (Leichtbau); Graphit-Elektroden; Diamantwerkzeuge; unersetzlich in der organischen Chemie und Biochemie.",
+7:"Haber-Bosch (Ammoniak → Dünger, ernährt ~50% der Weltbevölkerung); Inertgasatmosphäre; Kryotechnik; Sprengstoffherstellung.",
+8:"Medizin (Beatmung); Stahlproduktion (Sauerstoffkonverter); Verbrennung; Wasseraufbereitung.",
+9:"PTFE (Teflon, Beschichtungen); HF-Halbleiterätzung; Zahnfluoridierung; Lithiumfluorid-Batterien.",
+10:"Neonröhren und Leuchtreklamen; He-Ne-Laser; Kryotechnik; Schutzgas in Kernkraftwerken.",
+11:"Natriumdampflampen (Straßenbeleuchtung); NaOH (Papier, Seife); Na als Reaktorkühlmittel; Natriumchlorid (Konservierung).",
+12:"Leichtbaulegierungen (Luftfahrt, Automotive); Chlorophyllbestandteil (Fotosynthese); Feuerwerkssätze; Pharmaka.",
+13:"Meistverwendetes Nichteisenmetall: Flugzeugbau, Fahrzeugbau, Verpackung; elektrische Leitungen; Gebäudekonstruktion.",
+14:"Mikrochips und Transistoren (Digitale Revolution); Solarzellen; Glas; Silikone (Dichtungsmittel, Implantate).",
+15:"Phosphatdünger (Weltlandwirtschaft); DNA/ATP-Rückgrat (Leben); Zündhölzer; Pyrotechnik; Waschmittel.",
+16:"Schwefelsäure (meistproduzierte Chemikalie weltweit, Batterien, Dünger); Kautschukvulkanisierung; Schießpulver.",
+17:"Trinkwasserdesinfektion; PVC-Herstellung; Bleichmittel; Grundstoff für Pharmazeutika.",
+18:"Schutzgasatmosphäre beim Schweißen; Glühbirnenfüllung; Isolierverglasung; Lichtbogenöfen.",
+19:"Kaliumdünger (Landwirtschaft); KOH (Elektrolyse, Batterien); essentiell für Nerven- und Muskelfunktion.",
+20:"Zement und Kalk (Bauindustrie); Knochen/Zähne; Stahlentschwefelung; Calciumcarbonat (Papier, Farben).",
+21:"Sc-Al-Legierungen (Hochleistungssport, Lacrosse-Schläger, Fahrradrahmen); Metallhalogenid-Sportbeleuchtung.",
+22:"Luft- und Raumfahrtstrukturen; medizinische Implantate (biokompatibel); weißes TiO₂-Pigment (Farben, Sonnenschutz).",
+23:"Hochfeste V-Stähle (Werkzeuge, Pipelines); Vanadium-Redox-Batterien (Großspeicher); Katalysatoren (H₂SO₄-Herstellung).",
+24:"Edelstahl (korrosionsbeständig); Galvanik (Chromschichten); Cr-Pigmente; Ledergerbung.",
+25:"Stahlhärtung (Federstahl, Schienen); MnO₂ in Trockenbatterien; Düngemittel; Wasserreinigung.",
+26:"Stahl – das Rückgrat der Industriezivilisation: Maschinen, Infrastruktur, Fahrzeuge. Meistverwendetes Metall.",
+27:"SmCo- und NiCoAl-Permanentmagnete; Li-Co-Akkus; Schnellarbeitsstahl; Vitamin B₁₂ (Coenzym).",
+28:"Edelstahllegierungen; NiMH-Hybridakkus; Nickelkatalysatoren (Hydrierung); Münzen.",
+29:"Elektrische Leitungen und Motoren (bester wirtschaftlicher Leiter); Wärmetauscher; Kupferlegierungen (Bronze, Messing).",
+30:"Feuerverzinkung (Korrosionsschutz für Stahl); Zinkdruckguss; ZnO (Sonnenschutz, Gummivulkanisierung); Zinkbatterien.",
+31:"GaAs/GaN (Hochfrequenz-Elektronik, LEDs, Solarzellen); CIGS-Dünnschichtphotovoltaik.",
+32:"Glasfaser-Optik (GeO₂); Infrarotoptiken (Militär, Wärmebildkameras); frühe Transistoren; Raumfahrt-Solarzellen.",
+33:"GaAs-Halbleiter; Schädlingsbekämpfung (hist.); Holzschutzmittel (hist.); Glasfärber.",
+34:"CdTe-Dünnschichtsolar; Glasfärbung (Se = Entfärber od. rot); Fotokopierdrummel (hist.); Spurenelement.",
+35:"Flammschutzmittel (bromierte Verbindungen); Pharmawirkstoff-Synthese; AgBr-Fotografie (hist.).",
+36:"Isolierverglasungs-Füllgas; Krypton-Hochleistungslampen; Kr-Lasermedien; Maßstab (hist.: Wellenlänge).",
+37:"Atomuhren (Frequenzstandard, Rubidium-Atomuhr); magnetooptische Fallen (Quantenphysik); Ionentriebwerke.",
+38:"Rote Pyrotechnik/Feuerwerk; Ferrit-Magnete; Sr-90 in RTG-Raumsonden; SrTiO₃ in Elektronik.",
+39:"Y-Al-Granat (YAG-Laser, Industrieschneiden); LED-Phosphore (warm-weiß); YBCO-Hochtemperatursupraleiter.",
+40:"Kernreaktor-Hüllrohre (geringe Neutronenabsorption); ZrO₂ (Zahnkronen, Kochmesser, Wärmedämmung).",
+41:"Supraleitmagnete (MRT, LHC, ITER); Hochfeste Stähle (Pipelines, Karosserien); Nb-Kondensatoren.",
+42:"Hochtemperaturlegierungen (Turbinenschaufeln); MoS₂ (Schmierstoff); Katalysatoren; Spurennährstoff.",
+43:"Tc-99m – weltweit häufigstes Radionuklid in der Nuklearmedizin (SPECT-Diagnostik, ca. 20 Mio. Anwendungen/Jahr).",
+44:"Katalysatoren (Ammoniaksynthese); Dickschichtwiderstände (Elektronik); Rückkontakte in Solarzellen.",
+45:"Dreiwege-Abgaskatalysator (Kfz, reduziert CO/NOₓ/HC); Essigsäure-Synthese (Monsanto-Verfahren).",
+46:"Kfz-Abgaskatalysator; H₂-Reinigung und -speicherung; Weißgold-Schmuck; Dentallegierungen.",
+47:"Elektrische Kontakte (höchste Leitfähigkeit aller Metalle); AgBr-Fotografie (hist.); antibakteriell (Wundauflagen).",
+48:"CdTe-Dünnschichtsolar (höchste Moduleffizienz); NiCd-Akkus (hist.); Cd-Pigmente (hist.).",
+49:"ITO (Indiumzinnoxid) als transparente Elektrode in Touchscreens und LCD-Displays – unverzichtbar.",
+50:"Lötzinn (Elektronikfertigung); Weißblechdosen (Konserven); Zinnbronze (Kunsthandwerk, hist.).",
+51:"Sb₂O₃ als Flammschutzmittel; Legierung für Druckplatten; Halbleiter (hist.); Akkuplattenhärter.",
+52:"CdTe-Dünnschichtsolar; thermoelektrische Generatoren; Glasfärber; Telluradditive in Stahl.",
+53:"Schilddrüsenhormone (lebensnotwendig); medizinische Desinfektion; I-131 in der Schilddrüsentherapie; Polarisationsfolien.",
+54:"Xe-Scheinwerfer (Kfz, Kino); Satellitenionentriebwerke; Narkosemedizin; NMR-Spektroskopie.",
+55:"Atomuhren: Cs-133 definiert seit 1967 die SI-Sekunde. Grundlage für GPS, Telekommunikation, Internet-Zeitstempel.",
+56:"BaSO₄ als Röntgenkontrastmittel (Magen-Darm); BaTiO₃ (Piezoelektrika, Kondensatoren); Ferrit-Dauermagnete.",
+57:"NiMH-Akkus (La-Ni₅, Hybridfahrzeuge); Lanthan-Linsen (Kamera); Fluid-Cracking-Katalysatoren (Erdölraffinerie).",
+58:"Kfz-Katalysatoren (Ce als Sauerstoffspeicher); CeO₂ zum Polieren (Brillen, Glasscheiben); selbstreinigende Ofenbeschichtungen.",
+59:"Nd-Fe-B-Magnete (Pr verbessert Hochtemperaturstabilität); Pr-Glas (grüne Farbe); Lasermedien.",
+60:"Nd-Fe-B-Permanentmagnete – die stärksten dauerhaften Magnete: Elektromotoren, Windkraft, Lautsprecher, Festplatten.",
+61:"Radioaktiver Leuchtanstrich (hist.); Nuklearmedizin (Forschung); kaum praktische Anwendung wegen kurzer Halbwertszeit.",
+62:"SmCo-Permanentmagnete (Hochtemperaturstabilität, Raumfahrt, Militär); Sm als Neutronenabsorber in Reaktoren.",
+63:"Eu-Phosphore (rot) in Farbfernsehern, Leuchtstoffröhren und LEDs; UV-Sicherheitsdruck auf Euro-Banknoten.",
+64:"Gd-Chelate als MRT-Kontrastmittel; Gd als Neutronenabsorber; Magnetokalorischer Effekt (Kühlforschung).",
+65:"Tb-Phosphore (grün) in LED-Lampen; magneto-optische Datenspeicher; Terfenol-D (Magnetostriktion, Aktuatoren).",
+66:"Dy stabilisiert Nd-Fe-B-Magnete bei Hochtemperatur (Windkraft, Hybrid-/Elektrofahrzeuge); Lasermedien.",
+67:"Ho:YAG-Laser (Urologie, Lithotripsie, Ophthalmologie); Magnetpole (stärkstes magnetisches Moment aller Elemente).",
+68:"Er-dotierte Glasfaserverstärker (EDFA) – Rückgrat der weltweiten Glasfaserkommunikation und des Internets.",
+69:"Tm:YAG-Laser (Urologie); portable Röntgengeräte (Tm-170, ohne Stromversorgung); Strahlenmessgeräte.",
+70:"Yb-Faserlaser (höchste Dauerleistung); optische Gitteruhren (präziseste Uhren der Welt); Dotierung für Laserkristalle.",
+71:"LSO-Szintillatoren für PET-Scanner; Lu-177 in der Krebstherapie (PSMA-Therapie bei Prostatakrebs); Hydrierkatalysatoren.",
+72:"HfO₂ als Gate-Dielektrikum in CMOS-Transistoren (ab 45-nm-Knoten – entscheidend für Mooresches Gesetz); Reaktorsteuerstäbe.",
+73:"Tantal-Kondensatoren (unverzichtbar in Mobilgeräten und Elektronik); medizinische Implantate; Turbinenschaufeln.",
+74:"WC-Hartmetall (Bohrer, Fräser, Druckkopf); Wolfram-Elektroden (Schweißen); Röntgenanoden; Hochtemperaturöfen.",
+75:"Rhenium-Superlegierungen für Düsentriebwerke (höchste Betriebstemperaturen); Re-Katalysatoren (Erdölreforming).",
+76:"OsO₄ zur biologischen Präparation (Elektronenmikroskopie); härteste Legierungen (Tintenstiftspitzen).",
+77:"Ir-Re-Zündkerzen (Höchstleistung); Ir-192 in der Brachytherapie (Krebsbehandlung); Raumfahrtantriebe.",
+78:"Kfz-Dreiwegekatalysator; Cisplatin (Krebsmedikament, eines der wichtigsten weltweit); Pt-Elektroden; Labortiegel.",
+79:"Elektrische Verbindungskontakte (korrosionsfrei); Dentaltechnik; Goldnanopartikel (Biomedizin); globales Wertaufbewahrungsmittel.",
+80:"Chlor-Alkali-Elektrolyse (hist.); Hg-Dampflampen (hist.); Thermometer (hist.); Zahnfüllung-Amalgam (hist., zurückgehend).",
+81:"Tl-201 in der Herzszintigraphie; Tl-haltige Infrarot-Detektoren (TlBrI); frühere Rodentizide (hist.).",
+82:"Pb-Akkumulatoren (Kfz-Starter, USV); Strahlenschutzabschirmung (Röntgen, Nuklearmedizin); Pb-Lote (hist.).",
+83:"Bismutsubsalicylat (Pepto-Bismol, Magenmedikament); niedrigschmelzende Sicherheitslegierungen; Wismutoxid in Kosmetika.",
+84:"Po-210 in statischen Eliminatoren (Druckindustrie); Po-210 in RTG-Raumsonden (hist.); Alpha-Referenzquellen.",
+85:"At-211 für targeted alpha therapy (TAT) bei Krebs – hochwirksame Strahlentherapie, klinisch erforscht.",
+86:"Radon-Geologie (Erdbeben-Frühwarnung, Erzexploration); Rn als Indikator für Hausluft-Risiken; frühe Strahlentherapie (hist.).",
+87:"Ausschließlich Grundlagenforschung: Atomstruktur, Test des Standardmodells der Teilchenphysik.",
+88:"Ra-223 (Xofigo®) zur Behandlung von Knochenmetastasen bei Prostatakrebs; Bohrloch-Logging; Radiuminstitut (hist.).",
+89:"Ac-225 für targeted alpha therapy (TAT) – vielversprechend in klinischen Krebsstudien; Neutronenquellen.",
+90:"Potenzieller Kernbrennstoff im Th-U-Zyklus (proliferationssicherer als Uran); Gasglühstrümpfe (hist.).",
+91:"Fast ausschließlich Grundlagenforschung (Thorium-Zyklus); extrem selten und hochradioaktiv.",
+92:"Kernkraftwerke (U-235 als Spaltstoff); abgereichertes U in Panzerung und Gegengewichten; U-Pb-Radiodatierung.",
+93:"Np-237 als Ausgangsmaterial für Pu-238 (RTG-Generatoren: Voyager, Cassini, New Horizons).",
+94:"MOX-Kernbrennstoff; Pu-238 in RTG (Mars-Rover Curiosity, Perseverance); hist. Kernwaffen.",
+95:"Am-241 in Rauchmeldern (ionisiert Luft, erkennt Rauch); Kernphysikforschung.",
+96:"Cf-252-Quelle (Neutronenquelle); Grundlagenforschung; begrenzte Verfügbarkeit.",
+97:"Ausgangsmaterial für Cf-252-Synthese; Grundlagenforschung; nur einige Mikrogramm je verfügbar.",
+98:"Neutronenquellen (Bohrloch-Logging bei Erdölexploration, Cf-252); Brachytherapie (Neutronenbestrahlung); Forschung.",
+99:"Grundlagenforschung; Ausgangsmaterial für schwerere Elemente; extrem begrenzte Mengen.",
+100:"Nur Grundlagenforschung; Halbwertszeit zu kurz, Mengen zu klein für Anwendungen.",
+101:"Nur Grundlagenforschung (Atomphysik, Validierung des Periodensystems).",
+102:"Nur Grundlagenforschung; No-259 HWZ ~58 min.",
+103:"Nur Grundlagenforschung; schließt die Actinoidenreihe ab.",
+104:"Grundlagenforschung: chemisches Verhalten als Hf-Homolog; Nachweis chemischer Periodizität bei Transactiniden.",
+105:"Grundlagenforschung; Db-Verbindungen zeigen Gruppenähnlichkeiten zu Ta.",
+106:"Grundlagenforschung; Seaborgium-Verbindungen (z.B. SgO₂Cl₂) als Beweis für Extrapolierbarkeit des PSE.",
+107:"Nur Grundlagenforschung.",
+108:"Grundlagenforschung; Osmium-Homolog.",
+109:"Nur Grundlagenforschung.",
+110:"Grundlagenforschung; Platin-Homolog.",
+111:"Grundlagenforschung; relativistische Effekte machen Au-Analogie interessant.",
+112:"Grundlagenforschung; möglicherweise edelgasähnlich durch relativistische Effekte.",
+113:"Grundlagenforschung; erstes in Asien entdecktes Element.",
+114:"Grundlagenforschung; möglicherweise edelgasartig (relativistisch).",
+115:"Nur Grundlagenforschung.",
+116:"Nur Grundlagenforschung.",
+117:"Grundlagenforschung; schwerster Halogen-Vertreter.",
+118:"Grundlagenforschung; schwerster bekannter Vertreter; möglicherweise kein echtes Edelgas."
+},
+en:{
+1:"Fuel cells; Haber-Bosch process (ammonia/fertilizers); rocket propulsion; hydrogen economy.",
+2:"Superconductor cooling (MRI, accelerators); deep-sea diving (He/O₂ mix); inert gas for analytics.",
+3:"Li-ion batteries (EVs, smartphones); lithium salts (psychiatry); lightweight aerospace alloys.",
+4:"X-ray windows (low absorption); aerospace structures; nuclear reactor reflector.",
+5:"Borosilicate glass (Pyrex); nuclear control rods; semiconductor doping; borax (flame retardants).",
+6:"Carbon fiber (structural materials); graphite electrodes; diamond tools; basis of organic chemistry.",
+7:"Haber-Bosch (ammonia → fertilizer, feeds ~50% of world population); inert gas; cryogenics.",
+8:"Medical oxygen; steel production (converter process); combustion; water treatment.",
+9:"PTFE (Teflon coatings); semiconductor HF etching; tooth fluoridation; LiF batteries.",
+10:"Neon signs; He-Ne lasers; cryogenics; shielding gas in nuclear plants.",
+11:"Sodium vapor lamps; NaOH (paper, soap); Na as reactor coolant; table salt (NaCl).",
+12:"Lightweight alloys (aviation); chlorophyll component (photosynthesis); fireworks; pharmaceuticals.",
+13:"Most-used nonferrous metal: aircraft, vehicles, packaging; electrical wiring; buildings.",
+14:"Microchips and transistors (digital revolution); solar cells; glass; silicones.",
+15:"Phosphate fertilizers; DNA/ATP backbone (life); matches; pyrotechnics; detergents.",
+16:"Sulfuric acid (world's most-produced chemical); rubber vulcanization; gunpowder.",
+17:"Drinking water disinfection; PVC production; bleach; pharmaceutical synthesis.",
+18:"Welding shield gas; light bulb fill; insulating glass; arc furnaces.",
+19:"Potassium fertilizers; KOH (electrolysis, batteries); essential for nerve/muscle function.",
+20:"Cement and lime (construction); bones/teeth; steel desulfurization; pharmaceuticals.",
+21:"Sc-Al alloys (sports equipment); metal-halide sports lighting.",
+22:"Aerospace structures; medical implants (biocompatible); white TiO₂ pigment (paint, sunscreen).",
+23:"High-strength V-steels (tools, pipelines); vanadium redox batteries (grid storage); catalysts.",
+24:"Stainless steel (corrosion resistance); chrome plating; Cr pigments; leather tanning.",
+25:"Steel hardening (spring steel, rails); MnO₂ in dry batteries; fertilizers; water treatment.",
+26:"Steel – backbone of industrial civilization: machinery, infrastructure, vehicles. Most-used metal.",
+27:"SmCo and NiCoAl permanent magnets; Li-Co batteries; high-speed tool steel; vitamin B₁₂.",
+28:"Stainless steel alloys; NiMH hybrid batteries; nickel catalysts (hydrogenation); coins.",
+29:"Electrical wiring and motors (best practical conductor); heat exchangers; copper alloys.",
+30:"Hot-dip galvanizing; zinc die casting; ZnO (sunscreen, rubber); zinc batteries.",
+31:"GaAs/GaN (RF electronics, LEDs, solar cells); CIGS thin-film photovoltaics.",
+32:"Fiber optics (GeO₂); infrared optics (thermal imaging); early transistors; space solar cells.",
+33:"GaAs semiconductors; pest control (hist.); wood preservatives (hist.); glass coloring.",
+34:"CdTe thin-film solar; glass coloring; photocopier drums (hist.); trace nutrient.",
+35:"Flame retardants (brominated compounds); pharmaceutical synthesis; AgBr photography (hist.).",
+36:"Insulating glass fill; krypton high-performance lamps; Kr laser media; wavelength standard (hist.).",
+37:"Atomic clocks (rubidium frequency standard); magneto-optical traps; ion thrusters.",
+38:"Red pyrotechnics/fireworks; ferrite magnets; Sr-90 in RTG power sources; SrTiO₃ in electronics.",
+39:"YAG lasers (industrial cutting); LED phosphors (warm-white); YBCO high-temperature superconductor.",
+40:"Nuclear reactor cladding tubes (low neutron absorption); ZrO₂ (dental crowns, kitchen knives).",
+41:"Superconducting magnets (MRI, LHC, ITER); high-strength steels (pipelines, car bodies).",
+42:"High-temperature alloys (turbine blades); MoS₂ lubricant; catalysts; trace nutrient.",
+43:"Tc-99m – world's most-used radioisotope in nuclear medicine (SPECT diagnostics, ~20M uses/year).",
+44:"Catalysts (ammonia synthesis); thick-film resistors (electronics); solar cell contacts.",
+45:"Three-way catalytic converter (cars, reduces CO/NOₓ/HC); acetic acid synthesis.",
+46:"Automotive catalytic converter; H₂ purification and storage; white gold jewelry; dental alloys.",
+47:"Electrical contacts (highest conductivity of all metals); AgBr photography (hist.); antibacterial wound dressings.",
+48:"CdTe thin-film solar (highest module efficiency); NiCd batteries (hist.); Cd pigments (hist.).",
+49:"ITO (indium tin oxide) as transparent electrode in touchscreens and LCD displays – indispensable.",
+50:"Solder (electronics manufacturing); tin cans (food preservation); tin bronze (art/hist.).",
+51:"Sb₂O₃ as flame retardant; printing plate alloys; early semiconductors; battery plate hardener.",
+52:"CdTe thin-film solar; thermoelectric generators; glass coloring; tellurium additives in steel.",
+53:"Thyroid hormones (essential for life); medical disinfection; I-131 thyroid therapy; polarizing films.",
+54:"Xenon headlights (car, cinema); satellite ion thrusters; anesthesia; NMR spectroscopy.",
+55:"Atomic clocks: Cs-133 defines the SI second since 1967. Foundation for GPS, telecom, internet timestamps.",
+56:"BaSO₄ as X-ray contrast agent (GI tract); BaTiO₃ (piezoelectrics, capacitors); ferrite permanent magnets.",
+57:"NiMH batteries (La-Ni₅, hybrid cars); lanthanum optics (camera lenses); fluid cracking catalysts.",
+58:"Automotive catalysts (Ce as oxygen buffer); CeO₂ polishing agent; self-cleaning oven coatings.",
+59:"Nd-Fe-B magnets (Pr improves high-temperature stability); praseodymium glass (green); laser media.",
+60:"Nd-Fe-B permanent magnets – the strongest: electric motors, wind turbines, speakers, hard drives.",
+61:"Radioactive luminescent paint (hist.); nuclear medicine (research); little practical use due to short half-life.",
+62:"SmCo permanent magnets (high-temperature stability, aerospace, military); Sm neutron absorber in reactors.",
+63:"Eu phosphors (red) in color TVs, fluorescent lamps, and LEDs; UV security printing on euro banknotes.",
+64:"Gd chelates as MRI contrast agents; Gd neutron absorber; magnetocaloric effect (cooling research).",
+65:"Tb phosphors (green) in LED lamps; magneto-optical data storage; Terfenol-D (magnetostriction, actuators).",
+66:"Dy stabilizes Nd-Fe-B magnets at high temperatures (wind turbines, EVs); laser media.",
+67:"Ho:YAG laser (urology, lithotripsy, ophthalmology); magnetic pole pieces (highest magnetic moment).",
+68:"Er-doped fiber amplifiers (EDFA) – the backbone of global fiber-optic communication and the internet.",
+69:"Tm:YAG laser (urology); portable X-ray devices (Tm-170, no power supply needed); dosimetry.",
+70:"Yb fiber lasers (highest cw power); optical lattice clocks (most precise clocks); laser crystal doping.",
+71:"LSO scintillators for PET scanners; Lu-177 in cancer therapy (PSMA prostate cancer); catalysts.",
+72:"HfO₂ as gate dielectric in CMOS transistors (45nm node and beyond – key to Moore's Law); reactor control rods.",
+73:"Tantalum capacitors (essential in mobile devices); medical implants; turbine blades; acid-resistant equipment.",
+74:"WC hard metal (drilling, milling, cutting); tungsten electrodes (welding); X-ray anodes; high-temp furnaces.",
+75:"Rhenium superalloys for jet engines (highest operating temperatures); Re catalysts (oil reforming).",
+76:"OsO₄ for biological specimen preparation (electron microscopy); hardest known alloys (pen tips).",
+77:"Ir-Re spark plugs (highest performance); Ir-192 in brachytherapy (cancer); spacecraft thrusters.",
+78:"Automotive three-way catalyst; cisplatin (key cancer drug worldwide); Pt electrodes; lab crucibles.",
+79:"Electrical connectors (corrosion-free); dental alloys; gold nanoparticles (biomedicine); global store of value.",
+80:"Chlor-alkali electrolysis (hist.); Hg vapor lamps (hist.); thermometers (hist.); dental amalgam (hist.).",
+81:"Tl-201 cardiac scintigraphy; Tl-based infrared detectors (TlBrI); former rodenticides (hist.).",
+82:"Lead-acid batteries (car starter, UPS); radiation shielding (X-ray, nuclear); Pb solders (hist.).",
+83:"Bismuth subsalicylate (Pepto-Bismol, stomach medicine); low-melting safety alloys; bismuth oxide in cosmetics.",
+84:"Po-210 in static eliminators (printing industry); Po-210 in RTG spacecraft power (hist.); alpha reference sources.",
+85:"At-211 for targeted alpha therapy (TAT) in cancer – highly effective radiation therapy, in clinical research.",
+86:"Radon geology (earthquake warning, ore prospecting); indoor air hazard indicator; early radiation therapy (hist.).",
+87:"Pure fundamental research: atomic structure, Standard Model tests.",
+88:"Ra-223 (Xofigo®) for bone metastases in prostate cancer; borehole logging; radium institute (hist.).",
+89:"Ac-225 for targeted alpha therapy (TAT) – promising in clinical cancer trials; neutron sources.",
+90:"Potential nuclear fuel in the Th-U cycle (more proliferation-resistant than uranium); gas mantles (hist.).",
+91:"Almost exclusively fundamental research (Th cycle); extremely rare and highly radioactive.",
+92:"Nuclear power plants (U-235 fissile); depleted U in armor and counterweights; U-Pb radiometric dating.",
+93:"Np-237 as feedstock for Pu-238 (RTG generators: Voyager, Cassini, New Horizons spacecraft).",
+94:"MOX nuclear fuel; Pu-238 in RTG (Mars rovers Curiosity, Perseverance); historic nuclear weapons.",
+95:"Am-241 in smoke detectors (ionizes air, detects smoke); nuclear physics research.",
+96:"Cf-252 feedstock (neutron source); fundamental research; very limited availability.",
+97:"Feedstock for Cf-252 synthesis; fundamental research; only micrograms ever available.",
+98:"Neutron sources (Cf-252, borehole logging in oil exploration); neutron brachytherapy; research.",
+99:"Fundamental research; feedstock for heavier elements; extremely limited quantities.",
+100:"Fundamental research only; half-life too short, quantities too small for applications.",
+101:"Fundamental research (atomic physics, validating the periodic table).",
+102:"Fundamental research only; No-259 half-life ~58 min.",
+103:"Fundamental research; closes the actinide series.",
+104:"Fundamental research: chemical behavior as Hf homolog; proof of chemical periodicity among transactinides.",
+105:"Fundamental research; Db compounds show group similarities to Ta.",
+106:"Fundamental research; Sg compounds (e.g. SgO₂Cl₂) prove periodic table extrapolation.",
+107:"Fundamental research only.",
+108:"Fundamental research; osmium homolog.",
+109:"Fundamental research only.",
+110:"Fundamental research; platinum homolog.",
+111:"Fundamental research; relativistic effects make Au analogy interesting.",
+112:"Fundamental research; possibly noble-gas-like due to relativistic effects.",
+113:"Fundamental research; first element discovered in Asia.",
+114:"Fundamental research; possibly noble-gas-like (relativistic effects).",
+115:"Fundamental research only.",
+116:"Fundamental research only.",
+117:"Fundamental research; heaviest halogen representative.",
+118:"Fundamental research; heaviest known element; possibly not a true noble gas."
+}};
+
+// Synthesis background for synthetic elements — DE and EN
+const ELEM_SYNTH = {
+de:{
+43:"Bewusst (1937, Perrier & Segrè, Palermo/Berkeley). Mendelejevs PSE hatte eine Lücke bei Z=43. Zielgerichtete Synthese: Mo-96-Beschuss mit Deuteronen im Zyklotron – erster Nachweis eines gezielt hergestellten Elements.",
+61:"Teils zufällig (1945, Oak Ridge). In Uranspaltprodukten des Manhattan-Projekts entdeckt – kein Primärziel. Die Lücke Z=61 war bekannt; ein fehlendes Spektrallinie in Neodym-Gemischen hatte sie angedeutet. Entdecker: Marinsky, Glendenin, Coryell.",
+93:"Bewusst (1940, McMillan & Abelson, Berkeley). Ziel: Transuranelemente synthetisieren. Beschuss von U-238 mit langsamen Neutronen; Nachweis durch charakteristischen Beta-Zerfall. Erstes Element jenseits von Uran – öffnete das Feld der Transurankunde.",
+94:"Bewusst (1940/41, Seaborg et al., Berkeley). Gezielt als spaltbares Material für das Manhattan-Projekt entwickelt. Beschuss von U-238 mit Deuteronen; Pu-239 als Kernwaffenmaterial das primäre Ziel.",
+95:"Bewusst (1944, Seaborg et al., Chicago Metallurgical Lab). Neutronenbestrahlung von Pu-239 im Kernreaktor. Systematische Erweiterung der Transuranreihe. Die spätere Anwendung in Rauchmeldern war nicht das ursprüngliche Ziel.",
+96:"Bewusst (1944, Seaborg et al., Chicago). Neutronenbestrahlung von Pu-239; kurz nach Americium entdeckt. Benannt nach Marie und Pierre Curie als Anerkennung ihrer Pionierarbeit.",
+97:"Bewusst (1949, Thompson, Ghiorso, Seaborg, Berkeley). Alpha-Beschuss von Am-241. Systematische Erkundung schwerer Elemente jenseits von Curium. Benannt nach Berkeley, Kalifornien.",
+98:"Bewusst (1950, Thompson et al., Berkeley). Alpha-Beschuss von Cm-242. Benannt nach Kalifornien und der University of California. Systematische Fortsetzung der Actinoid-Synthese.",
+99:"Zufällig (1952, Ghiorso et al., geheim bis 1955). In Fallout-Filtern nach dem ersten H-Bombe-Test (Ivy Mike, Eniwetak-Atoll, 31. Okt. 1952) nachgewiesen. Stratosphärenflugzeuge sammelten Filterproben. Kein Syntheseziel – purer Zufall. Benannt nach Albert Einstein.",
+100:"Ebenfalls zufällig im Ivy-Mike-Fallout (1952) entdeckt, gemeinsam mit Einsteinium. Bis 1955 geheimgehalten. Überraschend schweres Spaltprodukt aus U-238 durch Mehrfachneutronen-Absorption. Benannt nach Enrico Fermi.",
+101:"Bewusst (1955, Ghiorso et al., Berkeley). Mikrobeschuss von Es-253 mit Alphateilchen – erstmals wurden nur wenige Atome auf einmal hergestellt und einzeln nachgewiesen. Revolutionierte Methodik der Schwerionenchemie. Benannt nach D.I. Mendelejew.",
+102:"Bewusst (bestätigt 1966, JINR Dubna). Frühere Ansprüche (Nobel-Institut Stockholm 1957, LBL 1958) erwiesen sich als falsch. Langer Namensstreit im Kalten Krieg. Synthese durch Beschuss von U-238 mit C-12.",
+103:"Bewusst (1961, Lawrence Berkeley Lab). Beschuss von Cf-252 mit B-10/11-Ionen. Schließt die Actinoidenreihe ab. Benannt nach Ernest Lawrence, Erfinder des Zyklotrons.",
+104:"Bewusst (1964 JINR Dubna, 1969 LBL). Erster Transactinoid. Schwerionenbeschuss; Namensstreit im Kalten Krieg: Rutherfordium (USA) vs. Kurtschatovium (UdSSR). Heute: Rutherfordium.",
+105:"Bewusst (1968 JINR Dubna, 1970 LBL). Schwerionenbeschuss. Kalter-Krieg-Namensstreit: Hahnium (USA) vs. Nilobium (UdSSR). Heute: Dubnium (nach Dubna).",
+106:"Bewusst (1974, LBL Berkeley / JINR Dubna). Benannt nach Glenn Seaborg – als erstem lebendem Menschen nach dem ein Element benannt wurde (umstritten, da IUPAC-Regel dagegen sprach; Ausnahme wurde gemacht).",
+107:"Bewusst (1981, GSI Darmstadt). Erste Herstellung am Schwerionenlinearbeschleuniger (UNILAC) der GSI. Benannt nach Niels Bohr.",
+108:"Bewusst (1984, GSI Darmstadt). Benannt nach Hessen, dem Bundesland in dem die GSI liegt. Osmium-Homolog in Gruppe 8.",
+109:"Bewusst (1982, GSI Darmstadt). Benannt nach Lise Meitner – erste Frau, nach der ein chemisches Element benannt wurde (posthum, nach IUPAC-Bestätigung 1997).",
+110:"Bewusst (1994, GSI Darmstadt). Nur einige Atome produziert. Benannt nach Darmstadt. Platin-Homolog (Gruppe 10).",
+111:"Bewusst (1994, GSI Darmstadt). Relativistische Effekte machen das Roentgenium zu einem chemisch ungewöhnlichen Gold-Homolog. Benannt nach Wilhelm Conrad Röntgen.",
+112:"Bewusst (1996, GSI Darmstadt). Benannt nach Nikolaus Kopernikus. Möglicherweise gasförmig oder flüssig bei Raumtemperatur durch relativistische Effekte – Quecksilber-Homolog mit noch stärkeren Relativitätskorrekturen.",
+113:"Bewusst (2004, RIKEN, Wako, Japan). Erstes in Asien entdecktes Element. Langwierige Bestätigung: nur 3 Zerfallsketten in 9 Jahren Messzeit. Benannt nach Nihon (日本, Japan auf Japanisch). 2016 offiziell anerkannt.",
+114:"Bewusst (1998, JINR Dubna + LLNL Livermore). Benannt nach Georgi Fljorow, Gründer des JINR-Flerov-Labors. Möglicherweise edelgasähnliches Verhalten durch relativistische Kontraktion der 7p-Schale.",
+115:"Bewusst (2003, JINR Dubna + LLNL). Benannt nach dem Oblast Moskau (Sitz von JINR Dubna). Zerfällt über Alpha-Zerfall zu Nihonium-289.",
+116:"Bewusst (2000, JINR Dubna + LLNL). Benannt nach dem Lawrence Livermore National Laboratory (LLNL), dem US-Partner von JINR.",
+117:"Bewusst (2010, JINR Dubna + Oak Ridge / Vanderbilt / LLNL). Aufwändigste Synthese: Bk-249-Target musste speziell in Oak Ridge hergestellt werden. Benannt nach Tennessee (ORNL und Vanderbilt University).",
+118:"Bewusst (2002, JINR Dubna + LLNL). Schwerster bekanntes Element, nur wenige Atome je hergestellt. Benannt nach Yuri Oganessian (lebendem Physiker). Relativistische Rechnungen deuten an, dass Og kein echtes Edelgas-Verhalten zeigt."
+},
+en:{
+43:"Intentional (1937, Perrier & Segrè, Palermo/Berkeley). Mendeleev's table had a gap at Z=43. Targeted synthesis: Mo-96 bombarded with deuterons in a cyclotron – first element deliberately produced.",
+61:"Partly accidental (1945, Oak Ridge). Found in uranium fission products during the Manhattan Project – not the primary goal. The Z=61 gap was known; a missing spectral line in neodymium mixtures had hinted at it. Discoverers: Marinsky, Glendenin, Coryell.",
+93:"Intentional (1940, McMillan & Abelson, Berkeley). Goal: synthesize transuranium elements. Bombarded U-238 with slow neutrons; confirmed by characteristic beta decay. First element beyond uranium.",
+94:"Intentional (1940/41, Seaborg et al., Berkeley). Deliberately developed as fissile material for the Manhattan Project. Pu-239 as nuclear weapons material was the primary goal.",
+95:"Intentional (1944, Seaborg et al., Chicago Metallurgical Lab). Neutron irradiation of Pu-239 in a nuclear reactor. Systematic expansion of the transuranium series. Its later use in smoke detectors was not the original goal.",
+96:"Intentional (1944, Seaborg et al., Chicago). Neutron irradiation of Pu-239; discovered shortly after americium. Named after Marie and Pierre Curie in recognition of their pioneering work.",
+97:"Intentional (1949, Thompson, Ghiorso, Seaborg, Berkeley). Alpha bombardment of Am-241. Systematic exploration beyond curium. Named after Berkeley, California.",
+98:"Intentional (1950, Thompson et al., Berkeley). Alpha bombardment of Cm-242. Named after California and the University of California. Systematic continuation of actinide synthesis.",
+99:"Accidental (1952, Ghiorso et al., secret until 1955). Found in fallout filter papers after the first H-bomb test (Ivy Mike, Enewetak Atoll, Oct. 31, 1952). Stratospheric aircraft collected filter samples. Not a synthesis goal – pure coincidence. Named after Albert Einstein.",
+100:"Also found accidentally in Ivy Mike fallout (1952), together with einsteinium. Secret until 1955. Surprisingly heavy fission product from U-238 via multiple neutron captures. Named after Enrico Fermi.",
+101:"Intentional (1955, Ghiorso et al., Berkeley). Micro-bombardment of Es-253 with alpha particles – first time an element was produced and detected one atom at a time. Revolutionized heavy-element chemistry methods. Named after D.I. Mendeleev.",
+102:"Intentional (confirmed 1966, JINR Dubna). Earlier claims (Nobel Institute Stockholm 1957, LBL 1958) proved incorrect. Long Cold War naming dispute. Synthesis by bombarding U-238 with C-12.",
+103:"Intentional (1961, Lawrence Berkeley Lab). Bombardment of Cf-252 with B-10/11 ions. Closes the actinide series. Named after Ernest Lawrence, inventor of the cyclotron.",
+104:"Intentional (1964 JINR Dubna, 1969 LBL). First transactinide. Heavy-ion bombardment; Cold War name dispute: Rutherfordium (USA) vs. Kurchatovium (USSR). Now: Rutherfordium.",
+105:"Intentional (1968 JINR Dubna, 1970 LBL). Heavy-ion bombardment. Cold War dispute: Hahnium (USA) vs. Nielsbohrium (USSR). Now: Dubnium (after Dubna).",
+106:"Intentional (1974, LBL Berkeley / JINR Dubna). Named after Glenn Seaborg – the first living person to have an element named after them (IUPAC made an exception to its usual rule).",
+107:"Intentional (1981, GSI Darmstadt). First production at GSI's UNILAC heavy-ion linear accelerator. Named after Niels Bohr.",
+108:"Intentional (1984, GSI Darmstadt). Named after Hesse (Hessen), the German state where GSI is located. Osmium homolog in Group 8.",
+109:"Intentional (1982, GSI Darmstadt). Named after Lise Meitner – first woman to have a chemical element named after her (posthumously confirmed by IUPAC 1997).",
+110:"Intentional (1994, GSI Darmstadt). Only a few atoms produced. Named after Darmstadt. Platinum homolog (Group 10).",
+111:"Intentional (1994, GSI Darmstadt). Relativistic effects make roentgenium a chemically unusual gold homolog. Named after Wilhelm Conrad Röntgen.",
+112:"Intentional (1996, GSI Darmstadt). Named after Nicolaus Copernicus. Possibly gaseous or liquid at room temperature due to relativistic effects – mercury homolog with even stronger relativistic corrections.",
+113:"Intentional (2004, RIKEN, Wako, Japan). First element discovered in Asia. Lengthy confirmation: only 3 decay chains in 9 years of measurements. Named after Nihon (日本, Japan in Japanese). Officially recognized 2016.",
+114:"Intentional (1998, JINR Dubna + LLNL Livermore). Named after Georgy Flyorov, founder of JINR's Flerov lab. Possibly noble-gas-like behavior due to relativistic contraction of the 7p shell.",
+115:"Intentional (2003, JINR Dubna + LLNL). Named after Moscow Oblast (location of JINR Dubna). Decays via alpha emission to nihonium-289.",
+116:"Intentional (2000, JINR Dubna + LLNL). Named after Lawrence Livermore National Laboratory (LLNL), the US partner of JINR.",
+117:"Intentional (2010, JINR Dubna + Oak Ridge/Vanderbilt/LLNL). Most complex synthesis: Bk-249 target had to be specially produced at Oak Ridge. Named after Tennessee (ORNL and Vanderbilt University).",
+118:"Intentional (2002, JINR Dubna + LLNL). Heaviest known element; only a few atoms ever produced. Named after Yuri Oganessian (living physicist). Relativistic calculations suggest Og may not behave as a true noble gas."
+}};
+let state = {
+  search: "",
+  stateFilter: "all",
+  occ: "all",
+  trend: "none",
+  catFilter: null
+};
+
+// ============================================================
+// RENDER
+// ============================================================
+const $ = (id) => document.getElementById(id);
+
+function updateI18n() {
+  document.querySelectorAll("[data-i18n]").forEach(el => {
+    el.textContent = t(el.dataset.i18n);
+  });
+  document.querySelectorAll("[data-i18n-ph]").forEach(el => {
+    el.placeholder = t(el.dataset.i18nPh);
+  });
+  $("title").textContent = t("title");
+  $("langBtn").textContent = lang === "de" ? "EN" : "DE";
+  renderLegend();
+  renderTable();
+}
+
+function getCatColor(cat) {
+  const map = {
+    "alkali-metal": "var(--c-alkali)",
+    "alkaline-earth": "var(--c-alkaline)",
+    "transition-metal": "var(--c-trans)",
+    "post-transition": "var(--c-posttrans)",
+    "metalloid": "var(--c-metalloid)",
+    "nonmetal": "var(--c-nonmetal)",
+    "halogen": "var(--c-halogen)",
+    "noble-gas": "var(--c-noble)",
+    "lanthanide": "var(--c-lanth)",
+    "actinide": "var(--c-act)",
+    "unknown": "var(--c-unknown)"
+  };
+  return map[cat] || map.unknown;
+}
+
+function renderLegend() {
+  const lg = $("legend");
+  lg.innerHTML = "";
+  CATEGORIES.forEach(cat => {
+    const item = document.createElement("div");
+    item.className = "legend-item";
+    if (state.catFilter === cat) item.style.background = "var(--bg-card)";
+    item.innerHTML = `
+      <div class="legend-swatch" style="background:${getCatColor(cat)}"></div>
+      <span>${t("cat_" + cat.replace(/-/g, "_"))}</span>
+    `;
+    item.onclick = () => {
+      state.catFilter = state.catFilter === cat ? null : cat;
+      renderTable();
+      renderLegend();
+    };
+    lg.appendChild(item);
+  });
+}
+
+// Trend value -> color (HSL gradient)
+function getTrendColor(value, min, max) {
+  if (value == null || min === max) return "var(--bg-card)";
+  const t = (value - min) / (max - min); // 0..1
+  // Same gradient as the bar: #2d5a8a -> #4a9eff -> #ffd43b -> #ff8787
+  const stops = [
+    { p: 0,    r: 45,  g: 90,  b: 138 },
+    { p: 0.33, r: 74,  g: 158, b: 255 },
+    { p: 0.66, r: 255, g: 212, b: 59  },
+    { p: 1,    r: 255, g: 135, b: 135 }
+  ];
+  let lo = stops[0], hi = stops[stops.length - 1];
+  for (let i = 0; i < stops.length - 1; i++) {
+    if (t >= stops[i].p && t <= stops[i+1].p) {
+      lo = stops[i]; hi = stops[i+1]; break;
+    }
+  }
+  const localT = (t - lo.p) / (hi.p - lo.p);
+  const r = Math.round(lo.r + (hi.r - lo.r) * localT);
+  const g = Math.round(lo.g + (hi.g - lo.g) * localT);
+  const b = Math.round(lo.b + (hi.b - lo.b) * localT);
+  return `rgb(${r},${g},${b})`;
+}
+
+function trendStats() {
+  if (state.trend === "none") return null;
+  const vals = ELEMENTS.map(e => e[state.trend]).filter(v => v != null);
+  if (!vals.length) return null;
+  return { min: Math.min(...vals), max: Math.max(...vals) };
+}
+
+const TREND_LABELS = {
+  atomicMass: { de: "Atommasse", en: "Atomic mass", unit: "u" },
+  electronegativity: { de: "Elektronegativität", en: "Electronegativity", unit: "" },
+  atomicRadius: { de: "Atomradius", en: "Atomic radius", unit: "pm" },
+  ionizationEnergy: { de: "Ionisierungsenergie", en: "Ionization energy", unit: "eV" },
+  meltingPoint: { de: "Schmelzpunkt", en: "Melting point", unit: "K" },
+  boilingPoint: { de: "Siedepunkt", en: "Boiling point", unit: "K" },
+  density: { de: "Dichte", en: "Density", unit: "g/cm³" }
+};
+
+// Map trend keys to element data keys
+const TREND_KEYS = {
+  atomicMass: "mass",
+  electronegativity: "en_p",
+  atomicRadius: "r",
+  ionizationEnergy: "ie",
+  meltingPoint: "mp",
+  boilingPoint: "bp",
+  density: "dens"
+};
+
+function elementMatches(el) {
+  if (state.search) {
+    const q = state.search.toLowerCase();
+    const ok = el.s.toLowerCase().includes(q) || el.de.toLowerCase().includes(q) ||
+                el.en.toLowerCase().includes(q) || String(el.n) === q;
+    if (!ok) return false;
+  }
+  // Phase filter uses corrected phase (synthetic → solid)
+  if (state.stateFilter !== "all" && getPhase(el) !== state.stateFilter) return false;
+  // Occurrence filter
+  if (state.occ !== "all" && getOcc(el) !== state.occ) return false;
+  // Category filter
+  if (state.catFilter && el.cat !== state.catFilter) return false;
+  return true;
+}
+
+function renderTable() {
+  const grid = $("ptable");
+  grid.innerHTML = "";
+
+  // Trend setup
+  let trendKey = null;
+  let stats = null;
+  if (state.trend !== "none") {
+    trendKey = TREND_KEYS[state.trend];
+    const vals = ELEMENTS.map(e => e[trendKey]).filter(v => v != null);
+    if (vals.length) stats = { min: Math.min(...vals), max: Math.max(...vals) };
+  }
+
+  // Trends bar
+  const tb = $("trendsBar");
+  if (state.trend !== "none" && stats) {
+    tb.classList.add("show");
+    const lbl = TREND_LABELS[state.trend];
+    $("trendLabel").textContent = lbl ? (lang === "de" ? lbl.de : lbl.en) : "";
+    $("trendMin").textContent = stats.min.toFixed(stats.min < 1 ? 4 : 2);
+    $("trendMax").textContent = stats.max.toFixed(stats.max < 1 ? 4 : 2);
+    $("trendUnit").textContent = lbl ? lbl.unit : "";
+  } else {
+    tb.classList.remove("show");
+  }
+
+  // Build a position map
+  const cells = {};
+  ELEMENTS.forEach(el => {
+    const pos = getGridPos(el);
+    cells[`${pos.row}-${pos.col}`] = el;
+  });
+
+  // Render 9 rows x 18 cols
+  for (let r = 1; r <= 9; r++) {
+    for (let c = 1; c <= 18; c++) {
+      const el = cells[`${r}-${c}`];
+
+      // Markers for La/Ac series in main table
+      if (r === 6 && c === 3) {
+        const m = document.createElement("div");
+        m.className = "cell cat-lanthanide marker";
+        m.title = t("marker_tooltip");
+        m.innerHTML = `
+          <div class="num">57–71</div>
+          <div class="sym" style="font-size:14px;">La–Lu</div>
+          <div class="name">${t("lanthanides_short")}</div>
+        `;
+        m.onclick = () => highlightSeries("lanthanide");
+        m.onmouseenter = () => setLinkActive("lanthanide", true);
+        m.onmouseleave = () => setLinkActive("lanthanide", false);
+        grid.appendChild(m);
+        continue;
+      }
+      if (r === 7 && c === 3) {
+        const m = document.createElement("div");
+        m.className = "cell cat-actinide marker";
+        m.title = t("marker_tooltip");
+        m.innerHTML = `
+          <div class="num">89–103</div>
+          <div class="sym" style="font-size:14px;">Ac–Lr</div>
+          <div class="name">${t("actinides_short")}</div>
+        `;
+        m.onclick = () => highlightSeries("actinide");
+        m.onmouseenter = () => setLinkActive("actinide", true);
+        m.onmouseleave = () => setLinkActive("actinide", false);
+        grid.appendChild(m);
+        continue;
+      }
+
+      // Empty separator row between row 7 and row 8
+      if ((r === 8 || r === 9) && c < 3) {
+        const ph = document.createElement("div");
+        ph.className = "placeholder";
+        grid.appendChild(ph);
+        continue;
+      }
+
+      if (!el) {
+        const ph = document.createElement("div");
+        ph.className = "placeholder";
+        grid.appendChild(ph);
+        continue;
+      }
+
+      const cell = document.createElement("div");
+      cell.className = "cell cat-" + el.cat;
+
+      // Tag La/Ac series cells for highlight-on-marker-click and reverse link activation
+      if (el.cat === "lanthanide") {
+        cell.dataset.series = "lanthanide";
+        cell.addEventListener("mouseenter", () => setLinkActive("lanthanide", true));
+        cell.addEventListener("mouseleave", () => setLinkActive("lanthanide", false));
+      } else if (el.cat === "actinide") {
+        cell.dataset.series = "actinide";
+        cell.addEventListener("mouseenter", () => setLinkActive("actinide", true));
+        cell.addEventListener("mouseleave", () => setLinkActive("actinide", false));
+      }
+
+      // Apply trend coloring if active
+      if (trendKey && stats) {
+        const v = el[trendKey];
+        cell.classList.remove("cat-" + el.cat);
+        cell.style.background = v != null ? getTrendColor(v, stats.min, stats.max) : "var(--bg-card)";
+      }
+
+      // Filter dim
+      if (!elementMatches(el)) cell.classList.add("dim");
+
+      const name = lang === "de" ? el.de : el.en;
+      cell.innerHTML = `
+        <div class="num">${el.n}</div>
+        <div class="sym">${el.s}</div>
+        <div class="name">${name}</div>
+        <div class="mass">${typeof el.mass === "number" ? el.mass.toFixed(2) : el.mass}</div>
+      `;
+      cell.onclick = () => showElement(el);
+      grid.appendChild(cell);
+    }
+  }
+
+  // Redraw connecting funnels after grid is laid out
+  requestAnimationFrame(drawSeriesLinks);
+}
+
+// ============================================================
+// MODAL: Element details
+// ============================================================
+function fmt(val, unit, decimals = 2) {
+  if (val == null) return t("unknown");
+  if (typeof val !== "number") return val + (unit ? " " + unit : "");
+  return val.toFixed(decimals) + (unit ? " " + unit : "");
+}
+
+function showElement(el) {
+  const name = lang === "de" ? el.de : el.en;
+  const desc = lang === "de" ? el.desc_de : el.desc_en;
+  const catName = t("cat_" + el.cat.replace(/-/g, "_"));
+  const phaseName = getPhase(el) === "solid" ? t("solid") :
+                    getPhase(el) === "liquid" ? t("liquid") : t("gas");
+  const occLabel = getOcc(el) === "synthetic" ? t("occ_syn_label") : t("occ_nat_label");
+  const useText = ELEM_USE[lang]?.[el.n] || ELEM_USE["de"]?.[el.n] || null;
+  const bedeutungLabel = lang === "de"
+    ? "Bedeutung für Wissenschaft und Technik"
+    : "Significance for Science and Technology";
+
+  $("modalContent").innerHTML = `
+    <button class="modal-close" onclick="closeModal()">×</button>
+    <div class="el-header">
+      <div class="el-badge cat-${el.cat}">
+        <div class="b-num">${el.n}</div>
+        <div class="b-sym">${el.s}</div>
+        <div class="b-mass">${typeof el.mass === "number" ? el.mass.toFixed(3) : el.mass}</div>
+      </div>
+      <div class="el-title">
+        <h2>${name}</h2>
+        <div class="cat">${catName} · ${t("block")} ${el.block.toUpperCase()} · <span style="color:${getOcc(el) === "synthetic" ? "var(--c-alkali)" : "var(--c-nonmetal)"};">${occLabel}</span></div>
+      </div>
+    </div>
+
+    <div class="el-grid">
+      <div class="el-row"><span class="k">${t("atomic_number")}</span><span class="v">${el.n}</span></div>
+      <div class="el-row"><span class="k">${t("atomic_mass")}</span><span class="v">${typeof el.mass === "number" ? el.mass.toFixed(4) : el.mass} u</span></div>
+      <div class="el-row"><span class="k">${t("period")}</span><span class="v">${el.p}</span></div>
+      <div class="el-row"><span class="k">${t("group")}</span><span class="v">${el.g}</span></div>
+      <div class="el-row"><span class="k">${t("state_phase")}</span><span class="v">${phaseName}</span></div>
+      <div class="el-row"><span class="k">${t("electronegativity")}</span><span class="v">${el.en_p ?? t("unknown")}</span></div>
+      <div class="el-row"><span class="k">${t("atomic_radius")}</span><span class="v">${fmt(el.r, "pm", 0)}</span></div>
+      <div class="el-row"><span class="k">${t("ionization_energy")}</span><span class="v">${fmt(el.ie, "eV", 3)}</span></div>
+      <div class="el-row"><span class="k">${t("melting_point")}</span><span class="v">${fmt(el.mp, "K", 2)}</span></div>
+      <div class="el-row"><span class="k">${t("boiling_point")}</span><span class="v">${fmt(el.bp, "K", 2)}</span></div>
+      <div class="el-row"><span class="k">${t("density")}</span><span class="v">${fmt(el.dens, "g/cm³", 4)}</span></div>
+      <div class="el-row"><span class="k">${t("discovered")}</span><span class="v">${el.disc ?? t("unknown")}${el.by ? " · " + el.by : ""}</span></div>
+    </div>
+
+    <div class="el-section">
+      <h3>${t("e_config")}</h3>
+      <p style="font-family:'Consolas',monospace;font-size:14px;">${el.cfg}</p>
+      <div class="config-shells">
+        ${el.shells.map((s, i) => `<div class="shell-pill"><span class="lbl">${["K","L","M","N","O","P","Q"][i]}</span>${s}</div>`).join("")}
+      </div>
+    </div>
+
+    <div class="el-section">
+      <h3>${t("description")}</h3>
+      <p>${desc}</p>
+    </div>
+
+    ${useText ? `
+    <div class="el-section">
+      <h3>${bedeutungLabel}</h3>
+      <p>${useText}</p>
+    </div>` : ""}
+  `;
+  $("modal").classList.add("show");
+}
+
+function closeModal() {
+  $("modal").classList.remove("show");
+}
+
+// ============================================================
+// SESSION STATE — Leitner / Spaced Repetition
+// ============================================================
+let reviewDeck = new Map();  // Map<el.n, element> — persistent review set
+let sessionStats = { rounds: 0, totalQ: 0, totalCorrect: 0 };
+
+function updateWissenstand() {
+  const ws = $("wissenstand");
+  const wsScore = $("wsScore");
+  const deckBtn = $("deckBtn");
+  const deckBadge = $("deckBadge");
+  if (sessionStats.totalQ === 0) { ws.style.display = "none"; return; }
+  ws.style.display = "flex";
+  const pct = Math.round((sessionStats.totalCorrect / sessionStats.totalQ) * 100);
+  wsScore.textContent = `${sessionStats.totalCorrect}/${sessionStats.totalQ} (${pct}%)`;
+  if (reviewDeck.size > 0) {
+    deckBtn.style.display = "inline-flex";
+    deckBadge.textContent = reviewDeck.size;
+  } else {
+    deckBtn.style.display = "none";
+  }
+}
+
+// ============================================================
+// QUIZ — Leitner (20 questions, result screen, deck update)
+// ============================================================
+const QUIZ_SIZE = 20;
+let quizState = { questions: [], answers: [], current: 0, score: 0, mode: "full", phase: "question" };
+
+function shuffle(arr) { return [...arr].sort(() => Math.random() - 0.5); }
+
+function generateQuestion(el, pool) {
+  const nameKey = lang === "de" ? "de" : "en";
+  const others = pool.filter(e => e.n !== el.n);
+  const pick3 = (fn) => shuffle(others).slice(0, 3).map(fn);
+  const qType = Math.floor(Math.random() * 5);
+  let question, correct, options;
+  switch (qType) {
+    case 0:
+      question = t("quiz_q1", el.s); correct = el[nameKey];
+      options = [correct, ...pick3(e => e[nameKey])]; break;
+    case 1:
+      question = t("quiz_q2", el[nameKey]); correct = el.s;
+      options = [correct, ...pick3(e => e.s)]; break;
+    case 2:
+      question = t("quiz_q3", el[nameKey]); correct = String(el.n);
+      options = [correct, ...pick3(e => String(e.n))]; break;
+    case 3:
+      question = t("quiz_q4", el.n); correct = el[nameKey];
+      options = [correct, ...pick3(e => e[nameKey])]; break;
+    case 4:
+      question = t("quiz_q5", el[nameKey]);
+      correct = t("cat_" + el.cat.replace(/-/g, "_"));
+      const otherCats = CATEGORIES.filter(c => c !== el.cat);
+      options = [correct, ...shuffle(otherCats).slice(0, 3).map(c => t("cat_" + c.replace(/-/g, "_")))]; break;
+  }
+  return { el, question, correct, options: shuffle(options) };
+}
+
+function openQuiz(mode = "full") {
+  let pool;
+  if (mode === "deck") {
+    pool = [...reviewDeck.values()];
+    if (pool.length < 4) {
+      alert(t("quiz_deck_empty")); return;
+    }
+  } else {
+    pool = ELEMENTS.slice(0, 86);
+  }
+  const n = Math.min(QUIZ_SIZE, pool.length);
+  const chosen = shuffle(pool).slice(0, n);
+  quizState = {
+    questions: chosen.map(el => generateQuestion(el, pool.length >= 4 ? pool : ELEMENTS.slice(0, 86))),
+    answers: new Array(n).fill(null),
+    current: 0, score: 0, mode, phase: "question"
+  };
+  $("quizModal").classList.add("show");
+  renderQuizQuestion();
+}
+
+function renderQuizQuestion() {
+  const { questions, current, score } = quizState;
+  const { question, correct, options } = questions[current];
+  const n = questions.length;
+  const pct = Math.round((current / n) * 100);
+  $("quizContent").innerHTML = `
+    <button class="modal-close" onclick="closeQuiz()">×</button>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+      <strong style="font-size:14px;">${t(quizState.mode === "deck" ? "quiz_mode_deck" : "quiz_title")}</strong>
+      <span style="font-size:12px;color:var(--text-dim);">${t("quiz_progress", current + 1, n)}</span>
+    </div>
+    <div class="quiz-progress-wrap">
+      <div class="quiz-progress-bar" style="width:${pct}%"></div>
+    </div>
+    <div class="quiz-q">${question}</div>
+    <div class="quiz-opts" id="quizOpts">
+      ${options.map(o => `<button class="quiz-opt" data-opt="${o.replace(/"/g, "&quot;")}">${o}</button>`).join("")}
+    </div>
+    <div id="quizFeedback"></div>
+  `;
+  document.querySelectorAll(".quiz-opt").forEach(btn => {
+    btn.onclick = () => handleQuizAnswer(btn.dataset.opt, correct);
+  });
+}
+
+function handleQuizAnswer(selected, correct) {
+  const isRight = selected === correct;
+  if (isRight) quizState.score++;
+  quizState.answers[quizState.current] = { selected, isRight };
+
+  document.querySelectorAll(".quiz-opt").forEach(btn => {
+    btn.disabled = true;
+    if (btn.dataset.opt === correct) btn.classList.add("correct");
+    else if (btn.dataset.opt === selected) btn.classList.add("wrong");
+  });
+
+  const last = quizState.current === quizState.questions.length - 1;
+  $("quizFeedback").innerHTML = `
+    <div style="margin-top:10px;font-size:13px;color:${isRight ? "var(--c-nonmetal)" : "var(--c-alkali)"};">
+      ${isRight ? t("quiz_correct") : t("quiz_wrong") + " <strong>" + correct + "</strong>"}
+    </div>
+    <button class="quiz-next" onclick="${last ? "showQuizResult()" : "advanceQuiz()"}" style="margin-top:10px;width:100%;padding:10px;font-weight:600;">
+      ${last ? t("quiz_result_title") + " →" : t("quiz_next")}
+    </button>
+  `;
+}
+
+function advanceQuiz() {
+  quizState.current++;
+  renderQuizQuestion();
+}
+
+function showQuizResult() {
+  quizState.phase = "result";
+  const { questions, answers, score, mode } = quizState;
+  const n = questions.length;
+  const pct = Math.round((score / n) * 100);
+  const nameKey = lang === "de" ? "de" : "en";
+
+  // Update session stats
+  sessionStats.totalQ += n;
+  sessionStats.totalCorrect += score;
+  sessionStats.rounds++;
+
+  // Update review deck
+  const newWrong = [];
+  questions.forEach(({ el }, i) => {
+    if (!answers[i]?.isRight) {
+      if (!reviewDeck.has(el.n)) newWrong.push(el);
+      reviewDeck.set(el.n, el);
+    } else if (mode === "deck") {
+      // Correct in deck quiz → remove from deck (Leitner: promote out)
+      reviewDeck.delete(el.n);
+    }
+  });
+  updateWissenstand();
+
+  // Deck note
+  let deckNote = "";
+  if (newWrong.length > 0 && reviewDeck.size > newWrong.length) {
+    deckNote = t("quiz_result_deck_already", newWrong.length, reviewDeck.size);
+  } else if (newWrong.length > 0) {
+    deckNote = t("quiz_result_added", newWrong.length);
+  } else {
+    deckNote = t("quiz_result_none_added");
+  }
+
+  // Color bar
+  const barColor = pct >= 80 ? "var(--c-nonmetal)" : pct >= 50 ? "var(--c-trans)" : "var(--c-alkali)";
+
+  // Rows for result table
+  const rows = questions.map(({ el, question, correct }, i) => {
+    const ans = answers[i];
+    const ok = ans?.isRight;
+    const sym = el.s;
+    const cat = el.cat;
+    return `<tr class="${ok ? "row-right" : "row-wrong"}">
+      <td>${i + 1}</td>
+      <td><span class="el-micro cat-${cat}">${sym}</span></td>
+      <td style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${question}">${question}</td>
+      <td style="color:${ok ? "var(--c-nonmetal)" : "var(--c-alkali)"};">${ans?.selected ?? "—"}</td>
+      <td>${ok ? "✓" : `<span style="color:var(--c-nonmetal);font-size:11px;">${correct}</span>`}</td>
+    </tr>`;
+  }).join("");
+
+  const deckSize = reviewDeck.size;
+  $("quizContent").innerHTML = `
+    <button class="modal-close" onclick="closeQuiz()">×</button>
+    <h2 style="margin-top:0;font-size:18px;">${t("quiz_result_title")}</h2>
+
+    <div class="result-score-wrap">
+      <div>
+        <div class="result-score-big" style="color:${barColor};">${score}<span style="font-size:18px;color:var(--text-dim);">/${n}</span></div>
+        <div class="result-score-sub">${t("quiz_result_pct", pct)}</div>
+      </div>
+      <div class="result-bar-wrap">
+        <div class="result-bar-bg"><div class="result-bar-fill" style="width:${pct}%;background:${barColor};"></div></div>
+        <div style="font-size:11px;color:var(--text-dim);">${t("quiz_result_score", score, n)}</div>
+      </div>
+    </div>
+
+    <div class="result-deck-note">${deckNote}</div>
+
+    <div style="max-height:260px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;">
+      <table class="result-table">
+        <thead><tr>
+          <th>${t("quiz_col_nr")}</th>
+          <th>${t("quiz_col_el")}</th>
+          <th>${t("quiz_col_q")}</th>
+          <th>${t("quiz_col_answer")}</th>
+          <th>${t("quiz_col_correct")}</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+
+    <div class="result-actions" style="margin-top:12px;">
+      <button onclick="openQuiz('full')" style="background:var(--bg-card);">${t("quiz_retry")}</button>
+      ${deckSize >= 4 ? `<button onclick="openQuiz('deck')" style="background:var(--accent-dim);">${t("quiz_deck_start", deckSize)}</button>` : ""}
+      ${deckSize > 0 ? `<button onclick="openReviewDeck()" style="background:var(--bg-card);">🃏 ${t("ws_deck")} (${deckSize})</button>` : ""}
+      <button onclick="closeQuiz()" style="background:transparent;border-color:var(--border);">${t("quiz_close")}</button>
+    </div>
+  `;
+}
+
+function closeQuiz() {
+  $("quizModal").classList.remove("show");
+}
+
+// ============================================================
+// FLASHCARDS — Normal + Review Deck
+// ============================================================
+let fcState = { idx: 0, flipped: false, deck: [], mode: "full" };
+
+function openFlashcards(mode = "full") {
+  fcState.mode = mode;
+  if (mode === "review") {
+    fcState.deck = shuffle([...reviewDeck.values()]);
+    if (fcState.deck.length === 0) {
+      $("fcContent").innerHTML = `
+        <button class="modal-close" onclick="closeFc()">×</button>
+        <h2 style="margin-top:0;">${t("fc_title_review")}</h2>
+        <p style="color:var(--text-dim);text-align:center;padding:30px 0;">${t("fc_deck_empty")}</p>
+        <button onclick="closeFc();openQuiz();" style="width:100%;">🎯 ${t("quiz_title")}</button>
+      `;
+      $("fcModal").classList.add("show");
+      return;
+    }
+  } else {
+    fcState.deck = shuffle(ELEMENTS.slice(0, 86));
+  }
+  fcState.idx = 0; fcState.flipped = false;
+  renderFlashcard();
+  $("fcModal").classList.add("show");
+}
+
+function openReviewDeck() {
+  closeQuiz();
+  openFlashcards("review");
+}
+
+function renderFlashcard() {
+  const el = fcState.deck[fcState.idx];
+  const name = lang === "de" ? el.de : el.en;
+  const catName = t("cat_" + el.cat.replace(/-/g, "_"));
+  const isReview = fcState.mode === "review";
+  const inDeck = reviewDeck.has(el.n);
+  const titleStr = isReview ? t("fc_title_review") : t("fc_title");
+  const badge = isReview ? `<span class="mode-badge review">Wiederholung</span>` : "";
+  const deckSize = reviewDeck.size;
+  const isSynth = SYNTHETIC_ELEMENTS.has(el.n);
+
+  // Extra card data
+  const useText = ELEM_USE[lang]?.[el.n] || ELEM_USE["de"]?.[el.n] || "—";
+  const synthText = ELEM_SYNTH[lang]?.[el.n] || ELEM_SYNTH["de"]?.[el.n] || null;
+  const discStr = el.disc
+    ? `${el.disc}${el.by ? " · " + el.by : ""}`
+    : (lang === "de" ? "seit der Antike bekannt" : "known since antiquity");
+  const phaseName = (() => {
+    const p = getPhase(el);
+    const map = { solid: t("solid"), liquid: t("liquid"), gas: t("gas") };
+    return map[p] || p;
+  })();
+  const occLabel = isSynth ? t("occ_syn_label") : t("occ_nat_label");
+
+  $("fcContent").innerHTML = `
+    <button class="modal-close" onclick="closeFc()">×</button>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+      <h2 style="margin:0;font-size:16px;">${titleStr}${badge}</h2>
+      <span style="font-size:12px;color:var(--text-dim);">${t("fc_card", fcState.idx + 1, fcState.deck.length)}</span>
+    </div>
+    <div class="quiz-progress-wrap">
+      <div class="quiz-progress-bar" style="width:${Math.round(((fcState.idx + 1) / fcState.deck.length) * 100)}%"></div>
+    </div>
+    <div class="fc-card ${fcState.flipped ? "flipped" : ""}" id="fcCard">
+      <div class="fc-inner">
+        <div class="fc-front cat-${el.cat}">
+          <div class="fc-num">${el.n}</div>
+          <div class="fc-sym">${el.s}</div>
+        </div>
+        <div class="fc-back" style="overflow-y:auto;align-items:flex-start;justify-content:flex-start;padding:16px;">
+          <div style="font-size:18px;font-weight:700;margin-bottom:10px;width:100%;">${name} <span style="font-size:12px;color:var(--text-dim);font-weight:400;">${el.s} · ${el.n}</span></div>
+          <div class="fc-back-row"><span class="k">${t("atomic_mass")}</span><span>${typeof el.mass === "number" ? el.mass.toFixed(3) : el.mass} u</span></div>
+          <div class="fc-back-row"><span class="k">${t("state_phase")}</span><span>${phaseName}</span></div>
+          <div class="fc-back-row"><span class="k">${t("card_occurrence")}</span><span style="color:${isSynth ? "var(--c-alkali)" : "var(--c-nonmetal)"};">${occLabel}</span></div>
+          <div class="fc-back-row"><span class="k">${t("e_config")}</span><span style="font-family:monospace;font-size:11px;">${el.cfg}</span></div>
+          <div class="fc-back-row" style="align-items:flex-start;"><span class="k">${t("card_discovery")}</span><span style="text-align:right;">${discStr}</span></div>
+          <div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border);width:100%;">
+            <div style="font-size:10px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">${t("card_use")}</div>
+            <div style="font-size:12px;line-height:1.5;">${useText}</div>
+          </div>
+          ${isSynth && synthText ? `
+          <div style="margin-top:10px;padding-top:8px;border-top:1px solid var(--border);width:100%;">
+            <div style="font-size:10px;color:var(--c-alkali);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;">⚗ ${t("card_synth")}</div>
+            <div style="font-size:12px;line-height:1.5;">${synthText}</div>
+          </div>` : ""}
+        </div>
+      </div>
+    </div>
+    <div class="fc-hint">${t("fc_flip")}</div>
+    <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap;">
+      <button onclick="fcPrev()" ${fcState.idx === 0 ? "disabled" : ""} style="flex:1;">${t("fc_prev")}</button>
+      <button onclick="fcNext()" ${fcState.idx === fcState.deck.length - 1 ? "disabled" : ""} style="flex:1;">${t("fc_next")}</button>
+    </div>
+    ${isReview && inDeck ? `
+    <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
+      <button onclick="removeFromDeck(${el.n})" style="flex:1;font-size:12px;background:rgba(105,219,124,0.15);border-color:var(--c-nonmetal);">${t("fc_remove")}</button>
+      ${deckSize >= 4 ? `<button onclick="closeFc();openQuiz('deck');" style="flex:1;font-size:12px;background:var(--accent-dim);">${t("fc_deck_quiz", deckSize)}</button>` : ""}
+    </div>` : ""}
+    ${!isReview && reviewDeck.size > 0 ? `
+    <div style="margin-top:8px;">
+      <button onclick="openFlashcards('review')" style="width:100%;font-size:12px;background:rgba(255,107,107,0.15);border-color:var(--c-alkali);">🔄 ${t("ws_deck")} (${reviewDeck.size})</button>
+    </div>` : ""}
+  `;
+  $("fcCard").onclick = () => {
+    fcState.flipped = !fcState.flipped;
+    $("fcCard").classList.toggle("flipped");
+  };
+}
+
+function removeFromDeck(elN) {
+  reviewDeck.delete(elN);
+  updateWissenstand();
+  // Remove from current deck view and advance
+  fcState.deck = fcState.deck.filter(e => e.n !== elN);
+  if (fcState.deck.length === 0) {
+    closeFc(); return;
+  }
+  if (fcState.idx >= fcState.deck.length) fcState.idx = fcState.deck.length - 1;
+  fcState.flipped = false;
+  renderFlashcard();
+}
+
+function fcPrev() {
+  if (fcState.idx > 0) { fcState.idx--; fcState.flipped = false; renderFlashcard(); }
+}
+function fcNext() {
+  if (fcState.idx < fcState.deck.length - 1) { fcState.idx++; fcState.flipped = false; renderFlashcard(); }
+}
+function closeFc() { $("fcModal").classList.remove("show"); }
+
+// ============================================================
+// SERIES LINKS — L-shaped SVG lines, no element overlap
+// Route: marker → left of grid (app padding) → placeholder cols → series row
+// ============================================================
+function drawSeriesLinks() {
+  const overlay = document.getElementById("seriesOverlay");
+  const wrap = document.querySelector(".ptable-wrap");
+  if (!overlay || !wrap) return;
+
+  const wrapRect = wrap.getBoundingClientRect();
+  if (wrapRect.width === 0) return;
+
+  overlay.setAttribute("width", wrapRect.width);
+  overlay.setAttribute("height", wrapRect.height);
+  overlay.setAttribute("viewBox", `0 0 ${wrapRect.width} ${wrapRect.height}`);
+
+  const rel = (el) => {
+    const r = el.getBoundingClientRect();
+    return { x: r.left - wrapRect.left, y: r.top - wrapRect.top, w: r.width, h: r.height };
+  };
+
+  // Build a simple VERTICAL line from marker center to first series cell center.
+  // The line sits just left of col-3 (in the 3px gap between col-2 and col-3),
+  // offset slightly so both lines are distinguishable where they run in parallel.
+  // SVG z-index > cell z-index, so the line renders on top everywhere.
+  function buildLink(marker, firstCell, xOff) {
+    if (!marker || !firstCell) return null;
+    const m  = rel(marker);
+    const fc = rel(firstCell);
+
+    // x: just inside the left edge of the marker/col-3, slightly offset per series
+    const xLine = m.x + xOff;
+    const yTop  = m.y  + m.h  * 0.5;   // center of marker cell
+    const yBot  = fc.y + fc.h * 0.5;   // center of first series cell
+
+    return {
+      d: `M ${xLine} ${yTop} L ${xLine} ${yBot}`,
+      dots: [
+        { cx: xLine, cy: yTop, r: 4 },   // dot on marker
+        { cx: xLine, cy: yBot, r: 4 },   // dot on first series cell
+      ]
+    };
+  }
+
+  let html = "";
+
+  const lMarker = wrap.querySelector(".cell.marker.cat-lanthanide");
+  const lanths  = [...wrap.querySelectorAll('[data-series="lanthanide"]')];
+  const lM = lMarker ? rel(lMarker) : null;
+  const lLink = buildLink(lMarker, lanths[0], lM ? lM.w - 22 : 8);
+  if (lLink) {
+    html += `<path d="${lLink.d}" class="series-link series-link-lanthanide" id="link-lanthanide"/>`;
+    lLink.dots.forEach(d =>
+      html += `<circle cx="${d.cx}" cy="${d.cy}" r="${d.r}" class="series-dot series-dot-lanthanide link-dot-lanthanide"/>`
+    );
+  }
+
+  const aMarker = wrap.querySelector(".cell.marker.cat-actinide");
+  const acts    = [...wrap.querySelectorAll('[data-series="actinide"]')];
+  const aM = aMarker ? rel(aMarker) : null;
+  const aLink = buildLink(aMarker, acts[0], aM ? aM.w - 11 : 14);
+  if (aLink) {
+    html += `<path d="${aLink.d}" class="series-link series-link-actinide" id="link-actinide"/>`;
+    aLink.dots.forEach(d =>
+      html += `<circle cx="${d.cx}" cy="${d.cy}" r="${d.r}" class="series-dot series-dot-actinide link-dot-actinide"/>`
+    );
+  }
+
+  overlay.innerHTML = html;
+}
+
+function setLinkActive(type, on) {
+  const link = document.getElementById(`link-${type}`);
+  if (link) on ? link.classList.add("active", "flowing") : link.classList.remove("active", "flowing");
+  document.querySelectorAll(`.link-dot-${type}`).forEach(d =>
+    on ? d.classList.add("active") : d.classList.remove("active")
+  );
+}
+
+// ============================================================
+// SERIES HIGHLIGHT (Lanthanide / Actinide marker click)
+// ============================================================
+function highlightSeries(type) {
+  const cells = document.querySelectorAll(`.cell[data-series="${type}"]`);
+  if (!cells.length) return;
+
+  // Scroll the first cell of the series into view
+  cells[0].scrollIntoView({ behavior: "smooth", block: "center" });
+
+  // Pulse-highlight all cells of the series
+  cells.forEach(c => {
+    c.classList.remove("series-highlight");
+    void c.offsetWidth;
+    c.classList.add("series-highlight");
+  });
+
+  // Also pulse the connecting funnel
+  setLinkActive(type, true);
+
+  setTimeout(() => {
+    cells.forEach(c => c.classList.remove("series-highlight"));
+    setLinkActive(type, false);
+  }, 2200);
+}
+
+// ============================================================
+// EVENT WIRING
+// ============================================================
+$("langBtn").onclick = () => { lang = lang === "de" ? "en" : "de"; updateI18n(); };
+$("search").addEventListener("input", e => { state.search = e.target.value.trim(); renderTable(); });
+$("stateFilter").onchange = e => { state.stateFilter = e.target.value; renderTable(); };
+$("occFilter").onchange = e => { state.occ = e.target.value; renderTable(); };
+$("trendFilter").onchange = e => { state.trend = e.target.value; renderTable(); };
+$("resetBtn").onclick = () => {
+  state = { search: "", stateFilter: "all", occ: "all", trend: "none", catFilter: null };
+  $("search").value = ""; $("stateFilter").value = "all";
+  $("occFilter").value = "all"; $("trendFilter").value = "none";
+  renderTable(); renderLegend();
+};
+$("quizBtn").onclick = () => openQuiz("full");
+$("fcBtn").onclick = () => openFlashcards("full");
+
+["modal", "quizModal", "fcModal"].forEach(id => {
+  $(id).onclick = (e) => { if (e.target.id === id) $(id).classList.remove("show"); };
+});
+document.addEventListener("keydown", e => {
+  if (e.key === "Escape") ["modal", "quizModal", "fcModal"].forEach(id => $(id).classList.remove("show"));
+});
+
+// Expose to global for inline onclick handlers
+window.closeModal = closeModal;
+window.closeQuiz = closeQuiz;
+window.closeFc = closeFc;
+window.advanceQuiz = advanceQuiz;
+window.showQuizResult = showQuizResult;
+window.openQuiz = openQuiz;
+window.openFlashcards = openFlashcards;
+window.openReviewDeck = openReviewDeck;
+window.removeFromDeck = removeFromDeck;
+window.fcPrev = fcPrev;
+window.fcNext = fcNext;
+window.highlightSeries = highlightSeries;
+window.setLinkActive = setLinkActive;
+
+// SVG resize
+const _wrap = document.querySelector(".ptable-wrap");
+if (_wrap && typeof ResizeObserver !== "undefined") {
+  new ResizeObserver(() => drawSeriesLinks()).observe(_wrap);
+}
+window.addEventListener("resize", () => drawSeriesLinks());
+
+// Init
+updateI18n();
+</script>
+
+</body>
+</html>

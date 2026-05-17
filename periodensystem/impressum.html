@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Impressum – Interaktives Periodensystem</title>
+<style>
+  :root {
+    --bg:#0f1419; --bg-elev:#1a2128; --bg-card:#232c36;
+    --border:#2f3a45; --text:#e6edf3; --text-dim:#8b96a3;
+    --accent:#4a9eff; --warn:#ffd43b;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;
+    font-size:15px; line-height:1.7; }
+  .page { max-width:720px; margin:0 auto; padding:40px 24px 80px; }
+  .header { display:flex; justify-content:space-between; align-items:flex-start;
+    gap:16px; margin-bottom:36px; padding-bottom:20px;
+    border-bottom:1px solid var(--border); flex-wrap:wrap; }
+  .header h1 { font-size:22px; font-weight:700; }
+  .header p  { font-size:13px; color:var(--text-dim); margin-top:4px; }
+  button { background:var(--bg-card); color:var(--text); border:1px solid var(--border);
+    padding:6px 14px; border-radius:6px; font-size:13px; cursor:pointer;
+    font-family:inherit; transition:border-color .15s; }
+  button:hover { border-color:var(--accent); }
+
+  h2 { font-size:14px; font-weight:700; text-transform:uppercase;
+    letter-spacing:0.5px; color:var(--text-dim); margin:28px 0 10px; }
+  h2:first-of-type { margin-top:0; }
+  .block { background:var(--bg-elev); border:1px solid var(--border);
+    border-radius:8px; padding:16px 20px; margin-bottom:14px; }
+  .block p { font-size:14px; line-height:1.7; }
+  .block p + p { margin-top:10px; }
+  .dimtext { color:var(--text-dim); font-size:13px; margin-top:6px; }
+  .strong { color:var(--warn); font-weight:600; }
+  a { color:var(--accent); }
+
+  .back-link { display:inline-flex; align-items:center; gap:6px;
+    color:var(--accent); font-size:13px; text-decoration:none; margin-top:32px; }
+  .back-link:hover { text-decoration:underline; }
+  footer { margin-top:40px; padding-top:16px; border-top:1px solid var(--border);
+    font-size:12px; color:var(--text-dim); }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <div class="header">
+    <div>
+      <h1 id="h1">Impressum</h1>
+      <p id="sub">Angaben gemäß § 5 DDG (Digitale-Dienste-Gesetz)</p>
+    </div>
+    <button onclick="toggleLang()" id="langBtn">English</button>
+  </div>
+
+  <h2 id="sec-anbieter">Anbieter</h2>
+  <div class="block">
+    <p>
+      Daniel Kollmer<br>
+      Baumgartnerstrasse 21<br>
+      DE-79540 Lörrach<br>
+      <span id="country">Deutschland</span>
+    </p>
+  </div>
+
+  <h2 id="sec-kontakt">Kontakt</h2>
+  <div class="block">
+    <p>
+      <span id="lbl-email">E-Mail:</span>
+      <a href="mailto:danielokollmer@gmail.com">danielokollmer@gmail.com</a>
+    </p>
+  </div>
+
+  <h2 id="sec-steuer">Steuer / Umsatzsteuer</h2>
+  <div class="block">
+    <p id="steuer-text">Es liegt keine Umsatzsteuer-Identifikationsnummer (USt-IdNr.) gemäß § 27a Umsatzsteuergesetz vor.</p>
+  </div>
+
+  <h2 id="sec-inhalt">Verantwortlich für den Inhalt</h2>
+  <div class="block">
+    <p id="inhalt-text">Verantwortlich für den Inhalt nach § 18 Abs. 2 MStV: Daniel Kollmer, Anschrift wie oben.</p>
+  </div>
+
+  <h2 id="sec-eu">EU-Streitbeilegung</h2>
+  <div class="block">
+    <p id="eu-text">Die Europäische Kommission stellt eine Plattform zur Online-Streitbeilegung (OS) bereit:
+      <a href="https://ec.europa.eu/consumers/odr/" target="_blank" rel="noopener">https://ec.europa.eu/consumers/odr/</a>.
+      Meine E-Mail-Adresse findest du oben im Abschnitt &bdquo;Kontakt&ldquo;.</p>
+    <p id="eu-note" class="dimtext">Ich bin nicht bereit oder verpflichtet, an Streitbeilegungsverfahren vor einer Verbraucherschlichtungsstelle teilzunehmen.</p>
+  </div>
+
+  <h2 id="sec-hosting">Hosting</h2>
+  <div class="block">
+    <p id="hosting-text">Diese Anwendung wird gehostet über GitHub Pages (GitHub, Inc., 88 Colin P. Kelly Jr. Street, San Francisco, CA 94107, USA).
+      Datenschutzerklärung GitHub: <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement" target="_blank" rel="noopener">github.com/privacy</a></p>
+  </div>
+
+  <h2 id="sec-haftung">Haftung für Inhalte und Links</h2>
+  <div class="block">
+    <p id="haftung-inhalt">Als Diensteanbieter bin ich gemäß § 7 Abs. 1 DDG für eigene Inhalte auf diesen Seiten nach den allgemeinen Gesetzen verantwortlich. Nach §§ 8 bis 10 DDG bin ich jedoch nicht verpflichtet, übermittelte oder gespeicherte fremde Informationen zu überwachen oder nach Umständen zu forschen, die auf eine rechtswidrige Tätigkeit hinweisen.</p>
+    <p id="haftung-links">Mein Angebot enthält ggf. Links zu externen Websites Dritter, auf deren Inhalte ich keinen Einfluss habe. Deshalb kann ich für diese fremden Inhalte auch keine Gewähr übernehmen. Für die Inhalte der verlinkten Seiten ist stets der jeweilige Anbieter oder Betreiber verantwortlich.</p>
+    <p id="haftung-daten" class="dimtext">Die Inhalte dieser Anwendung wurden sorgfältig erstellt. Für die Richtigkeit, Vollständigkeit und Aktualität der bereitgestellten Informationen (Elementdaten nach IUPAC-Standard 2021) wird keine Gewähr übernommen. Alle Daten dienen ausschließlich Bildungszwecken.</p>
+  </div>
+
+  <h2 id="sec-urheber">Urheberrecht</h2>
+  <div class="block">
+    <p id="urheber-text">Copyright &copy; 2026 by DaKo / Daniel Kollmer. Alle Rechte vorbehalten. Die durch den Seitenbetreiber erstellten Inhalte und Werke (Quellcode, Design, Texte, Icons) unterliegen dem deutschen Urheberrecht. Vervielfältigung, Bearbeitung, Verbreitung und jede Art der Verwertung außerhalb der Grenzen des Urheberrechts bedürfen der schriftlichen Zustimmung des Autors.</p>
+  </div>
+
+  <h2 id="sec-bilder">Bildquellen</h2>
+  <div class="block">
+    <p id="bilder-text">Cover, Icons und Grafiken erstellt mit OpenArt AI (KI-generiert, kommerziell lizenziert) und Pixabay (lizenzfreie Bilder). Alle Bilder sind ordnungsgemäß für kommerzielle Nutzung lizenziert.</p>
+  </div>
+
+  <h2 id="sec-disclaimer">Haftungsausschluss – Nur zu Unterhaltungs- und Bildungszwecken</h2>
+  <div class="block">
+    <p id="disclaimer-text">Diese Anwendung dient ausschließlich Unterhaltungs- und Lernzwecken. Sie ist <span class="strong">KEIN Ersatz</span> für professionelle Beratung. NICHT zu verwenden als: medizinischer, gesundheitlicher oder fitnessbezogener Ratgeber, Ernährungsberatung, Behandlung oder Ersatz für qualifizierte Fachleute. Vor gesundheitsbezogenen Entscheidungen ist immer ein lizenzierter Arzt, Ernährungsberater oder Experte zu konsultieren. Nicht während des Fahrens oder beim Bedienen von Maschinen verwenden.</p>
+    <p id="disclaimer-liability">Der Autor übernimmt <span class="strong">KEINE HAFTUNG</span> für Verletzungen, Schäden oder gesundheitliche Folgen, die sich aus der Nutzung dieser Anwendung ergeben.</p>
+  </div>
+
+  <h2 id="sec-equality">Gleichheit &amp; Respekt</h2>
+  <div class="block">
+    <p id="equality-text">Keiner der hier enthaltenen Inhalte ist rassistisch, diskriminierend oder beleidigend gemeint, noch sollten sie als solche verstanden werden.</p>
+  </div>
+
+  <a href="periodensystem.html" class="back-link" id="back-link">← Zurück zum Periodensystem</a>
+
+  <footer>
+    <a href="datenschutz.html" style="color:var(--text-dim);text-decoration:none;" id="footer-ds">Datenschutzerklärung</a>
+    &nbsp;·&nbsp;
+    <a href="hilfe.html" style="color:var(--text-dim);text-decoration:none;" id="footer-hilfe">Hilfe</a>
+    &nbsp;·&nbsp;
+    <span id="footer-version">Interaktives Periodensystem v2.2</span>
+  </footer>
+
+</div>
+<script>
+let lang = "de";
+const T = {
+  de: {
+    title:"Impressum",
+    sub:"Angaben gemäß § 5 DDG (Digitale-Dienste-Gesetz)",
+    lang_btn:"English",
+    sec_anbieter:"Anbieter", sec_kontakt:"Kontakt", sec_steuer:"Steuer / Umsatzsteuer",
+    sec_inhalt:"Verantwortlich für den Inhalt", sec_eu:"EU-Streitbeilegung",
+    sec_hosting:"Hosting", sec_haftung:"Haftung für Inhalte und Links",
+    sec_urheber:"Urheberrecht", sec_bilder:"Bildquellen",
+    sec_disclaimer:"Haftungsausschluss – Nur zu Unterhaltungs- und Bildungszwecken",
+    sec_equality:"Gleichheit & Respekt",
+    country:"Deutschland",
+    lbl_email:"E-Mail:",
+    steuer_text:"Es liegt keine Umsatzsteuer-Identifikationsnummer (USt-IdNr.) gemäß § 27a Umsatzsteuergesetz vor.",
+    inhalt_text:"Verantwortlich für den Inhalt nach § 18 Abs. 2 MStV: Daniel Kollmer, Anschrift wie oben.",
+    eu_text:'Die Europäische Kommission stellt eine Plattform zur Online-Streitbeilegung (OS) bereit: <a href="https://ec.europa.eu/consumers/odr/" target="_blank" rel="noopener">https://ec.europa.eu/consumers/odr/</a>. Meine E-Mail-Adresse findest du oben im Abschnitt &bdquo;Kontakt&ldquo;.',
+    eu_note:"Ich bin nicht bereit oder verpflichtet, an Streitbeilegungsverfahren vor einer Verbraucherschlichtungsstelle teilzunehmen.",
+    hosting_text:'Diese Anwendung wird gehostet über GitHub Pages (GitHub, Inc., 88 Colin P. Kelly Jr. Street, San Francisco, CA 94107, USA). Datenschutzerklärung GitHub: <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement" target="_blank" rel="noopener">github.com/privacy</a>',
+    haftung_inhalt:"Als Diensteanbieter bin ich gemäß § 7 Abs. 1 DDG für eigene Inhalte auf diesen Seiten nach den allgemeinen Gesetzen verantwortlich. Nach §§ 8 bis 10 DDG bin ich jedoch nicht verpflichtet, übermittelte oder gespeicherte fremde Informationen zu überwachen oder nach Umständen zu forschen, die auf eine rechtswidrige Tätigkeit hinweisen.",
+    haftung_links:"Mein Angebot enthält ggf. Links zu externen Websites Dritter, auf deren Inhalte ich keinen Einfluss habe. Deshalb kann ich für diese fremden Inhalte auch keine Gewähr übernehmen. Für die Inhalte der verlinkten Seiten ist stets der jeweilige Anbieter oder Betreiber verantwortlich.",
+    haftung_daten:"Die Inhalte dieser Anwendung wurden sorgfältig erstellt. Für die Richtigkeit, Vollständigkeit und Aktualität der bereitgestellten Informationen (Elementdaten nach IUPAC-Standard 2021) wird keine Gewähr übernommen. Alle Daten dienen ausschließlich Bildungszwecken.",
+    urheber_text:"Copyright &copy; 2026 by DaKo / Daniel Kollmer. Alle Rechte vorbehalten. Die durch den Seitenbetreiber erstellten Inhalte und Werke (Quellcode, Design, Texte, Icons) unterliegen dem deutschen Urheberrecht. Vervielfältigung, Bearbeitung, Verbreitung und jede Art der Verwertung außerhalb der Grenzen des Urheberrechts bedürfen der schriftlichen Zustimmung des Autors.",
+    bilder_text:"Cover, Icons und Grafiken erstellt mit OpenArt AI (KI-generiert, kommerziell lizenziert) und Pixabay (lizenzfreie Bilder). Alle Bilder sind ordnungsgemäß für kommerzielle Nutzung lizenziert.",
+    disclaimer_text:'Diese Anwendung dient ausschließlich Unterhaltungs- und Lernzwecken. Sie ist <span class="strong">KEIN Ersatz</span> für professionelle Beratung. NICHT zu verwenden als: medizinischer, gesundheitlicher oder fitnessbezogener Ratgeber, Ernährungsberatung, Behandlung oder Ersatz für qualifizierte Fachleute. Vor gesundheitsbezogenen Entscheidungen ist immer ein lizenzierter Arzt, Ernährungsberater oder Experte zu konsultieren. Nicht während des Fahrens oder beim Bedienen von Maschinen verwenden.',
+    disclaimer_liability:'Der Autor übernimmt <span class="strong">KEINE HAFTUNG</span> für Verletzungen, Schäden oder gesundheitliche Folgen, die sich aus der Nutzung dieser Anwendung ergeben.',
+    equality_text:"Keiner der hier enthaltenen Inhalte ist rassistisch, diskriminierend oder beleidigend gemeint, noch sollten sie als solche verstanden werden.",
+    back:"← Zurück zum Periodensystem",
+    footer_ds:"Datenschutzerklärung", footer_hilfe:"Hilfe",
+    footer_ver:"Interaktives Periodensystem v2.2"
+  },
+  en: {
+    title:"Imprint",
+    sub:"Information pursuant to § 5 DDG (German Digital Services Act, effective 14 May 2024)",
+    lang_btn:"Deutsch",
+    sec_anbieter:"Provider", sec_kontakt:"Contact", sec_steuer:"Tax / VAT",
+    sec_inhalt:"Responsible for content", sec_eu:"EU Dispute Resolution",
+    sec_hosting:"Hosting", sec_haftung:"Liability for Content and Links",
+    sec_urheber:"Copyright", sec_bilder:"Image Credits",
+    sec_disclaimer:"Disclaimer – For Entertainment & Educational Use Only",
+    sec_equality:"Equality & Respect",
+    country:"Germany",
+    lbl_email:"Email:",
+    steuer_text:"No VAT identification number (USt-IdNr.) according to § 27a German VAT Act exists.",
+    inhalt_text:"Person responsible for content according to § 18 (2) MStV: Daniel Kollmer, address as above.",
+    eu_text:'The European Commission provides a platform for online dispute resolution (ODR): <a href="https://ec.europa.eu/consumers/odr/" target="_blank" rel="noopener">https://ec.europa.eu/consumers/odr/</a>. My email address can be found above in the &ldquo;Contact&rdquo; section.',
+    eu_note:"I am neither willing nor obliged to participate in dispute resolution proceedings before a consumer arbitration body.",
+    hosting_text:'This application is hosted via GitHub Pages (GitHub, Inc., 88 Colin P. Kelly Jr. Street, San Francisco, CA 94107, USA). GitHub Privacy Policy: <a href="https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement" target="_blank" rel="noopener">github.com/privacy</a>',
+    haftung_inhalt:"As a service provider, I am responsible according to § 7 (1) DDG for my own content on these pages under general laws. According to §§ 8 to 10 DDG, however, I am not obliged to monitor transmitted or stored third-party information or to investigate circumstances indicating illegal activity.",
+    haftung_links:"This offering may contain links to external third-party websites whose content I cannot influence. Therefore, I cannot assume any liability for these external contents. The respective provider or operator of the linked pages is always responsible for their content.",
+    haftung_daten:"The content of this application has been compiled with care. No warranty is given for the accuracy, completeness or timeliness of the information provided (element data per IUPAC standard 2021). All data is for educational purposes only.",
+    urheber_text:"Copyright &copy; 2026 by DaKo / Daniel Kollmer. All rights reserved. The content and works created by the website operator (source code, design, texts, icons) are subject to German copyright law. Reproduction, editing, distribution, and any kind of exploitation outside the limits of copyright require the written consent of the author.",
+    bilder_text:"Covers, icons, and graphics created with OpenArt AI (AI-generated, commercially licensed) and Pixabay (royalty-free images). All images are properly licensed for commercial use.",
+    disclaimer_text:'This application is for entertainment and learning purposes only. It is <span class="strong">NOT a substitute</span> for professional advice. DO NOT use as: medical, health, or fitness advice, nutritional guidance, treatment, or replacement for qualified professionals. Always consult licensed physicians, dietitians, or experts before making health-related decisions. Not to be used while driving or operating machinery.',
+    disclaimer_liability:'The author assumes <span class="strong">NO LIABILITY</span> for injuries, damages, or health outcomes resulting from the use of this application.',
+    equality_text:"None of the content found herein is intended to be, nor should it be construed as, racist, discriminatory, or offensive in any way.",
+    back:"← Back to Periodic Table",
+    footer_ds:"Privacy Policy", footer_hilfe:"Help",
+    footer_ver:"Interactive Periodic Table v2.2"
+  }
+};
+function apply() {
+  const t = T[lang];
+  document.documentElement.lang = lang;
+  document.title = t.title + " – Interaktives Periodensystem";
+  const s = (id, val) => { const el = document.getElementById(id); if(el) el.innerHTML = val; };
+  s("h1", t.title); s("sub", t.sub); s("langBtn", t.lang_btn);
+  s("sec-anbieter", t.sec_anbieter); s("sec-kontakt", t.sec_kontakt);
+  s("sec-steuer", t.sec_steuer); s("sec-inhalt", t.sec_inhalt);
+  s("sec-eu", t.sec_eu); s("sec-hosting", t.sec_hosting);
+  s("sec-haftung", t.sec_haftung); s("sec-urheber", t.sec_urheber);
+  s("sec-bilder", t.sec_bilder); s("sec-disclaimer", t.sec_disclaimer);
+  s("sec-equality", t.sec_equality);
+  s("country", t.country); s("lbl-email", t.lbl_email);
+  s("steuer-text", t.steuer_text); s("inhalt-text", t.inhalt_text);
+  s("eu-text", t.eu_text); s("eu-note", t.eu_note);
+  s("hosting-text", t.hosting_text);
+  s("haftung-inhalt", t.haftung_inhalt); s("haftung-links", t.haftung_links);
+  s("haftung-daten", t.haftung_daten);
+  s("urheber-text", t.urheber_text); s("bilder-text", t.bilder_text);
+  s("disclaimer-text", t.disclaimer_text); s("disclaimer-liability", t.disclaimer_liability);
+  s("equality-text", t.equality_text);
+  const bl = document.getElementById("back-link");
+  if(bl) bl.textContent = t.back;
+  s("footer-ds", t.footer_ds); s("footer-hilfe", t.footer_hilfe);
+  s("footer-version", t.footer_ver);
+}
+function toggleLang() { lang = lang === "de" ? "en" : "de"; apply(); }
+apply();
+</script>
+</body>
+</html>

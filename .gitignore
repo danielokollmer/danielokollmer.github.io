@@ -1,0 +1,28 @@
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Local
+*.log
+*.tmp
+node_modules/
+dist/
+build/
+
+# OneDrive-Artefakte (durch das Mount-Setup entstanden, nicht deployen)
+**/.well-known/assetlinks.json.original
+
+# Keystore / Secrets — NIEMALS commiten
+*.jks
+*.keystore
+secrets/
+.env
+.env.local

@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Deployment-Roadmap – Interaktives Periodensystem</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;600;700&display=swap');
+
+:root {
+  --bg:       #0d1117;
+  --bg-1:     #161b22;
+  --bg-2:     #21262d;
+  --border:   #30363d;
+  --text:     #e6edf3;
+  --text-dim: #7d8590;
+  --accent:   #58a6ff;
+  --green:    #3fb950;
+  --yellow:   #d29922;
+  --red:      #f85149;
+  --purple:   #bc8cff;
+  --orange:   #ffa657;
+  --done:     #238636;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  min-height: 100vh;
+}
+
+/* ── Sidebar ── */
+.sidebar {
+  background: var(--bg-1);
+  border-right: 1px solid var(--border);
+  padding: 28px 0;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+.sidebar-logo {
+  padding: 0 20px 20px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 16px;
+}
+.sidebar-logo h1 {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+  letter-spacing: 0.5px;
+}
+.sidebar-logo p { font-size: 11px; color: var(--text-dim); margin-top: 2px; }
+
+.nav-section { padding: 0 20px; margin-bottom: 20px; }
+.nav-section-title {
+  font-size: 10px; text-transform: uppercase;
+  letter-spacing: 1px; color: var(--text-dim);
+  margin-bottom: 8px; font-weight: 600;
+}
+.nav-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 8px; border-radius: 5px;
+  font-size: 13px; color: var(--text-dim);
+  text-decoration: none; cursor: pointer;
+  transition: all 0.15s;
+  margin-bottom: 2px;
+}
+.nav-item:hover { background: var(--bg-2); color: var(--text); }
+.nav-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  flex-shrink: 0;
+}
+.dot-done   { background: var(--green); }
+.dot-active { background: var(--yellow); }
+.dot-next   { background: var(--text-dim); border: 1px solid var(--text-dim); }
+
+/* ── Main ── */
+.main { padding: 40px 48px 80px; max-width: 900px; }
+
+.page-header { margin-bottom: 40px; }
+.page-header .eyebrow {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px; color: var(--accent);
+  text-transform: uppercase; letter-spacing: 1px;
+  margin-bottom: 8px;
+}
+.page-header h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+.page-header p { color: var(--text-dim); font-size: 15px; max-width: 600px; }
+
+/* ── Phase cards ── */
+.phase {
+  margin-bottom: 48px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.phase-header {
+  display: flex; align-items: center; gap: 14px;
+  padding: 16px 20px;
+  background: var(--bg-1);
+  border-bottom: 1px solid var(--border);
+}
+.phase-num {
+  width: 32px; height: 32px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px; font-weight: 600;
+  flex-shrink: 0;
+}
+.phase-num.done   { background: var(--done); }
+.phase-num.active { background: var(--yellow); color: #000; }
+.phase-num.next   { background: var(--bg-2); border: 1px solid var(--border); }
+.phase-title-wrap h2 { font-size: 16px; font-weight: 700; }
+.phase-title-wrap .phase-meta {
+  font-size: 12px; color: var(--text-dim); margin-top: 2px;
+}
+.phase-badge {
+  margin-left: auto;
+  font-size: 11px; font-weight: 600;
+  padding: 3px 10px; border-radius: 12px;
+  white-space: nowrap;
+}
+.badge-done   { background: rgba(63,185,80,.15); color: var(--green); border: 1px solid rgba(63,185,80,.3); }
+.badge-active { background: rgba(210,153,34,.15); color: var(--yellow); border: 1px solid rgba(210,153,34,.3); }
+.badge-next   { background: var(--bg-2); color: var(--text-dim); border: 1px solid var(--border); }
+.badge-invest { background: rgba(255,166,87,.12); color: var(--orange); border: 1px solid rgba(255,166,87,.3); }
+
+.phase-body { padding: 0; }
+
+/* Steps */
+.step {
+  display: flex; gap: 0;
+  border-bottom: 1px solid var(--border);
+}
+.step:last-child { border-bottom: none; }
+.step-num-col {
+  width: 48px; flex-shrink: 0;
+  display: flex; align-items: flex-start;
+  justify-content: center;
+  padding-top: 18px;
+  color: var(--text-dim);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  border-right: 1px solid var(--border);
+}
+.step-content { padding: 16px 20px; flex: 1; }
+.step-content h3 { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+.step-content p  { font-size: 13px; color: var(--text-dim); line-height: 1.55; }
+.step-content p + p { margin-top: 6px; }
+
+/* Code block */
+.code-block {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px 14px;
+  margin-top: 10px;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  line-height: 1.7;
+  color: var(--accent);
+  overflow-x: auto;
+  white-space: pre;
+}
+.code-block .cm { color: var(--text-dim); }
+.code-block .val { color: var(--green); }
+.code-block .url { color: var(--purple); }
+
+/* Fee table */
+.fee-table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 13px; }
+.fee-table th {
+  text-align: left; padding: 7px 12px;
+  background: var(--bg); color: var(--text-dim);
+  font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--border);
+}
+.fee-table td {
+  padding: 9px 12px;
+  border-bottom: 1px solid rgba(48,54,61,0.6);
+  vertical-align: top;
+}
+.fee-table tr:last-child td { border-bottom: none; }
+.fee-table td:first-child { font-weight: 600; }
+.green { color: var(--green); }
+.yellow { color: var(--yellow); }
+.red { color: var(--red); }
+.dim { color: var(--text-dim); }
+
+/* Info box */
+.info-box {
+  margin: 16px 0 4px;
+  background: rgba(88,166,255,.07);
+  border: 1px solid rgba(88,166,255,.25);
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-size: 13px; color: var(--text-dim);
+}
+.info-box strong { color: var(--accent); }
+
+.warn-box {
+  margin: 12px 0 4px;
+  background: rgba(210,153,34,.07);
+  border: 1px solid rgba(210,153,34,.25);
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-size: 13px; color: var(--text-dim);
+}
+.warn-box strong { color: var(--yellow); }
+
+/* File tree */
+.file-tree {
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px 14px;
+  margin-top: 10px;
+  line-height: 1.9;
+}
+.ft-dir  { color: var(--accent); }
+.ft-file { color: var(--text); }
+.ft-dim  { color: var(--text-dim); }
+
+/* Summary bar */
+.summary {
+  display: flex; gap: 12px; flex-wrap: wrap;
+  margin-bottom: 36px;
+}
+.summary-card {
+  flex: 1; min-width: 130px;
+  background: var(--bg-1); border: 1px solid var(--border);
+  border-radius: 8px; padding: 14px 16px;
+}
+.summary-card .val { font-size: 22px; font-weight: 700; margin-bottom: 2px; }
+.summary-card .lbl { font-size: 11px; color: var(--text-dim); text-transform: uppercase; letter-spacing: 0.5px; }
+
+@media (max-width: 768px) {
+  .layout { grid-template-columns: 1fr; }
+  .sidebar { display: none; }
+  .main { padding: 24px 20px 60px; }
+}
+</style>
+</head>
+<body>
+<div class="layout">
+
+<!-- ── SIDEBAR ── -->
+<nav class="sidebar">
+  <div class="sidebar-logo">
+    <h1>PSE // ROADMAP</h1>
+    <p>v2.2 → Store-Launch</p>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-section-title">Abgeschlossen</div>
+    <a class="nav-item" href="#phase0"><div class="nav-dot dot-done"></div>Produkt fertig</a>
+    <a class="nav-item" href="#phase1"><div class="nav-dot dot-done"></div>Direktverkauf</a>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-section-title">Jetzt umsetzen</div>
+    <a class="nav-item" href="#phase2"><div class="nav-dot dot-active"></div>PWA + GitHub Pages</a>
+    <a class="nav-item" href="#phase3"><div class="nav-dot dot-active"></div>Microsoft Store</a>
+    <a class="nav-item" href="#phase4"><div class="nav-dot dot-next"></div>Google Play</a>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-section-title">Optional / Später</div>
+    <a class="nav-item" href="#phase5"><div class="nav-dot dot-next"></div>Amazon Appstore</a>
+    <a class="nav-item" href="#phase6"><div class="nav-dot dot-next"></div>Apple App Store</a>
+    <a class="nav-item" href="#phase7"><div class="nav-dot dot-next"></div>Preise & Marketing</a>
+  </div>
+</nav>
+
+<!-- ── MAIN ── -->
+<main class="main">
+
+  <div class="page-header">
+    <div class="eyebrow">Deployment-Roadmap</div>
+    <h1>Interaktives Periodensystem</h1>
+    <p>Von der fertigen HTML-App zum Multi-Store-Launch — ohne technisches Backend, minimaler Invest.</p>
+  </div>
+
+  <!-- Summary -->
+  <div class="summary">
+    <div class="summary-card">
+      <div class="val green">25€</div>
+      <div class="lbl">Min. Gesamt-Invest</div>
+    </div>
+    <div class="summary-card">
+      <div class="val" style="color:var(--accent);">4</div>
+      <div class="lbl">Stores erreichbar</div>
+    </div>
+    <div class="summary-card">
+      <div class="val" style="color:var(--purple);">500M+</div>
+      <div class="lbl">Potenz. Nutzer-Devices</div>
+    </div>
+    <div class="summary-card">
+      <div class="val yellow">1 Codebase</div>
+      <div class="lbl">Alles aus einer HTML-Datei</div>
+    </div>
+  </div>
+
+  <!-- ── PHASE 0 ── -->
+  <div class="phase" id="phase0">
+    <div class="phase-header">
+      <div class="phase-num done">✓</div>
+      <div class="phase-title-wrap">
+        <h2>Phase 0 — Produkt ist fertig</h2>
+        <div class="phase-meta">periodensystem.html · hilfe.html · manifest.json · sw.js · icons/</div>
+      </div>
+      <span class="phase-badge badge-done">Abgeschlossen</span>
+    </div>
+    <div class="phase-body">
+      <div class="step">
+        <div class="step-num-col">01</div>
+        <div class="step-content">
+          <h3>PWA-Paket vollständig</h3>
+          <p>Das Paket enthält: <code>periodensystem.html</code> (PWA-fähig, Service Worker, manifest-Link), <code>hilfe.html</code>, <code>manifest.json</code>, <code>sw.js</code>, Icons in 5 Größen (48/96/144/192/512 px), <code>assetlinks.json</code>-Vorlage für Google Play.</p>
+          <div class="file-tree">
+<span class="ft-dir">pse-pwa/</span>
+├── <span class="ft-file">periodensystem.html</span>   <span class="ft-dim">← PWA-ready, offline-fähig</span>
+├── <span class="ft-file">hilfe.html</span>
+├── <span class="ft-file">manifest.json</span>           <span class="ft-dim">← Store-Metadaten</span>
+├── <span class="ft-file">sw.js</span>                   <span class="ft-dim">← Service Worker (Offline)</span>
+├── <span class="ft-dir">icons/</span>
+│   ├── <span class="ft-file">icon-48.png</span>
+│   ├── <span class="ft-file">icon-96.png</span>
+│   ├── <span class="ft-file">icon-144.png</span>
+│   ├── <span class="ft-file">icon-192.png</span>   <span class="ft-dim">← Google Play / Android</span>
+│   └── <span class="ft-file">icon-512.png</span>   <span class="ft-dim">← Microsoft Store</span>
+├── <span class="ft-dir">screenshots/</span>           <span class="ft-dim">← noch erstellen (für Stores)</span>
+│   ├── <span class="ft-file">desktop.png</span>     <span class="ft-dim">1280×800</span>
+│   └── <span class="ft-file">mobile.png</span>      <span class="ft-dim">390×844</span>
+└── <span class="ft-dir">.well-known/</span>
+    └── <span class="ft-file">assetlinks.json</span> <span class="ft-dim">← SHA-256 nach Signierung eintragen</span>
+          </div>
+          <div class="info-box"><strong>Noch nötig:</strong> 2 Screenshots erstellen (Browser-Vollbild). Für Stores sind professionelle Screenshots wichtig.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── PHASE 1 ── -->
+  <div class="phase" id="phase1">
+    <div class="phase-header">
+      <div class="phase-num done">✓</div>
+      <div class="phase-title-wrap">
+        <h2>Phase 1 — Sofort-Verkauf (0€)</h2>
+        <div class="phase-meta">Etsy (vorhanden) · Payhip · Ko-fi · Itch.io</div>
+      </div>
+      <span class="phase-badge badge-done">Heute starten</span>
+    </div>
+    <div class="phase-body">
+      <div class="step">
+        <div class="step-num-col">01</div>
+        <div class="step-content">
+          <h3>Etsy — ZIP-Download (schon vorhanden)</h3>
+          <p>ZIP mit <code>periodensystem.html + hilfe.html + README.txt</code> hochladen. Preis: <strong>3,99–6,99 €</strong>. Tags: "Periodensystem interaktiv", "Chemie Lernen", "Lernspiel Chemie", "Periodic Table Interactive", "Chemistry Learning Game".</p>
+          <p>Etsy-Gebühren: 0,20 $ Listing + 6,5% + Zahlungsgebühr ≈ 10% effektiv.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num-col">02</div>
+        <div class="step-content">
+          <h3>Payhip — Empfehlung für DACH</h3>
+          <p>Kostenlos starten, <strong>5% Transaktionsgebühr</strong>. Wichtiger Vorteil: automatische EU-VAT-Abwicklung (OSS-Pflicht bei digitalen Downloads in DE/AT/CH für Endverbraucher — Payhip übernimmt das vollständig). Eigene Storefront, einbettbar.</p>
+          <p>→ <strong>payhip.com</strong> · Produkt: "HTML + Hilfe-Datei" · Preis: 3,99–6,99 €</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num-col">03</div>
+        <div class="step-content">
+          <h3>Itch.io — Geheimtipp für interaktive Lerntools</h3>
+          <p>Plattform für Indie-Games und interaktive Medien. <strong>HTML-Datei direkt im Browser spielbar</strong> — kein Download nötig. Käufer sehen das Periodensystem direkt eingebettet. Du wählst die eigene Commission (0–30%). Sehr entwicklerfreundlich.</p>
+          <p>→ <strong>itch.io</strong> · Kategorie: "Educational" · Format: HTML-Upload</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num-col">04</div>
+        <div class="step-content">
+          <h3>Ko-fi — Direkter Fan-Verkauf</h3>
+          <p>Kostenlos (5% Gebühr) oder 12€/Monat (0%). Gut für Social-Media-Verlinkung und Community. Kombination: "Name deinen Preis" zieht mehr Käufer an.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── PHASE 2 ── -->
+  <div class="phase" id="phase2">
+    <div class="phase-header">
+      <div class="phase-num active">2</div>
+      <div class="phase-title-wrap">
+        <h2>Phase 2 — GitHub Pages Hosting (0€)</h2>
+        <div class="phase-meta">Voraussetzung für Microsoft Store + Google Play</div>
+      </div>
+      <span class="phase-badge badge-active">Jetzt umsetzen</span>
+    </div>
+    <div class="phase-body">
+      <div class="step">
+        <div class="step-num-col">01</div>
+        <div class="step-content">
+          <h3>GitHub-Account erstellen / anmelden</h3>
+          <p>→ <strong>github.com</strong> · Kostenloser Account reicht vollständig aus.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num-col">02</div>
+        <div class="step-content">
+          <h3>Repository anlegen + Dateien hochladen</h3>
+          <p>Neues Repository: <code>periodensystem</code> (Public). Alle Dateien aus dem <code>pse-pwa/</code>-Ordner hochladen (Drag &amp; Drop im Browser). Den Ordner <code>.well-known/</code> danach separat anlegen.</p>
+          <div class="code-block"><span class="cm"># Wichtig: .well-known/assetlinks.json</span>
+<span class="cm"># GitHub Pages rendert versteckte Ordner korrekt</span>
+<span class="val">Repository-Struktur:</span>
+  periodensystem.html
+  hilfe.html
+  manifest.json
+  sw.js
+  icons/icon-48.png ... icon-512.png
+  screenshots/desktop.png, mobile.png
+  .well-known/assetlinks.json</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num-col">03</div>
+        <div class="step-content">
+          <h3>GitHub Pages aktivieren</h3>
+          <p>Repository → Settings → Pages → Source: "Deploy from branch" → Branch: main, Folder: / (root). Nach 1-2 Minuten ist die App erreichbar unter:</p>
+          <div class="code-block"><span class="url">https://DEIN-USERNAME.github.io/periodensystem/</span>
+<span class="url">https://DEIN-USERNAME.github.io/periodensystem/periodensystem.html</span></div>
+          <div class="info-box"><strong>Wichtig:</strong> GitHub Pages liefert automatisch HTTPS — Pflichtvoraussetzung für Service Worker und PWA-Funktionen.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num-col">04</div>
+        <div class="step-content">
+          <h3>PWA-Test mit Lighthouse</h3>
+          <p>Chrome-Browser → die GitHub-Pages-URL öffnen → F12 → Lighthouse → "Progressive Web App" prüfen. Score ≥ 90 ist für Store-Einreichung empfehlenswert.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num-col">05</div>
+        <div class="step-content">
+          <h3>Screenshots erstellen</h3>
+          <p>Vollbild-Screenshot Desktop (1280×800) und Mobile (Chrome DevTools → Responsive, 390px Breite). Als <code>screenshots/desktop.png</code> und <code>screenshots/mobile.png</code> zum Repository hinzufügen. Wichtig für Store-Listings.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── PHASE 3 ── -->
+  <div class="phase" id="phase3">
+    <div class="phase-header">
+      <div class="phase-num active">3</div>
+      <div class="phase-title-wrap">
+        <h2>Phase 3 — Microsoft Store (0€)</h2>
+        <div class="phase-meta">250 Mio. monatl. aktive Nutzer · Gratis seit Sep 2025 · PWABuilder</div>
+      </div>
+      <span class="phase-badge badge-done">0€ Invest</span>
+    </div>
+    <div class="phase-body">
+      <div class="step">
+        <div class="step-num-col">01</div>
+        <div class="step-content">
+          <h3>Developer-Account erstellen (kostenlos)</h3>
+          <p>→ <strong>storedeveloper.microsoft.com</strong> · Persönliches Microsoft-Konto verwenden. Seit September 2025 keine Registrierungsgebühr mehr für Einzelpersonen.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num-col">02</div>
+        <div class="step-content">
+          <h3>App-Namen reservieren im Partner Center</h3>
+          <p>Partner Center → "Neues Produkt" → "MSIX oder PWA App" → Name reservieren: z. B. "Interaktives Periodensystem". Publisher-ID und Package-ID notieren.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num-col">03</div>
+        <div class="step-content">
+          <h3>PWA packen mit PWABuilder</h3>
+          <p>→ <strong>pwabuilder.com</strong> · GitHub-Pages-URL eingeben → Evaluierung abwarten → "Package for Stores" → Windows → ".msixbundle" herunterladen.</p>
+          <div class="code-block">URL eingeben: <span class="url">https://DEIN-USERNAME.github.io/periodensystem/</span>
+→ "Start" → Report Card ≥ 70%
+→ "Package For Stores" → Windows → "Generate Package"
+→ Publisher Name, Publisher ID aus Partner Center eintragen
+→ "Download Package" (.zip mit .msixbundle + .classic.appxbundle)</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num-col">04</div>
+        <div class="step-content">
+          <h3>App im Partner Center einreichen</h3>
+          <p>Partner Center → App auswählen → "Submission starten" → Preis, Altersfreigabe, Screenshots, Store-Beschreibung ausfüllen → .msixbundle hochladen → Einreichen. Review: 24–48 Stunden.</p>
+          <div class="info-box"><strong>Commerce-Option:</strong> Für Nicht-Spiele-Apps kann Microsoft's eigenes Bezahlsystem oder ein externes (z. B. Payhip-Link) verwendet werden. Externes System → 100% Erlös (Stripe/PayPal-Gebühr fällt trotzdem an).</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── PHASE 4 ── -->
+  <div class="phase" id="phase4">
+    <div class="phase-header">
+      <div class="phase-num next">4</div>
+      <div class="phase-title-wrap">
+        <h2>Phase 4 — Google Play Store (25€)</h2>
+        <div class="phase-meta">TWA (Trusted Web Activity) · Bubblewrap / PWABuilder · 15% Commission</div>
+      </div>
+      <span class="phase-badge badge-invest">25€ einmalig</span>
+    </div>
+    <div class="phase-body">
+      <div class="step">
+        <div class="step-num-col">01</div>
+        <div class="step-content">
+          <h3>Google Play Developer Account erstellen</h3>
+          <p>→ <strong>play.google.com/console</strong> · Einmalige Registrierungsgebühr: <strong>25 USD</strong>. Google-Konto erforderlich. Danach unbegrenzt viele Apps veröffentlichbar.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num-col">02</div>
+        <div class="step-content">
+          <h3>Android-Package mit PWABuilder generieren</h3>
+          <p>→ <strong>pwabuilder.com</strong> → gleiche URL wie für Microsoft → "Package for Stores" → Android. PWABuilder erzeugt eine <strong>.aab</strong>-Datei (Android App Bundle) via TWA-Technologie — der Browser lädt deine gehostete PWA, sieht aber wie eine native App aus.</p>
+          <div class="code-block">Package Name: <span class="val">de.deinname.periodensystem</span>  <span class="cm"># z.B. de.dakocreatives.pse</span>
+App Version:  <span class="val">1</span>
+Display:      <span class="val">standalone</span>
+Signing:      <span class="cm">Neuen Keystore erstellen lassen</span>
+              <span class="cm">→ SHA-256-Fingerprint notieren!</span></div>
+          <div class="warn-box"><strong>Keystore sichern!</strong> Die generierte .jks-Keystore-Datei und das Passwort SICHER aufbewahren (z. B. KeePass, verschlüsseltes Backup). Ohne Keystore können Updates nicht veröffentlicht werden.</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num-col">03</div>
+        <div class="step-content">
+          <h3>assetlinks.json mit SHA-256 befüllen</h3>
+          <p>Den SHA-256-Fingerprint aus dem Keystore in <code>.well-known/assetlinks.json</code> eintragen. Dann zu GitHub pushen. Ohne diese Datei zeigt die App im Browser eine Adressleiste — mit ihr verschwindet sie und es sieht nativ aus.</p>
+          <div class="code-block">{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": <span class="val">"de.dakocreatives.pse"</span>,
+    "sha256_cert_fingerprints": [
+      <span class="val">"XX:XX:XX:...:XX"</span>  <span class="cm">← aus Keystore</span>
+    ]
+  }
+}</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num-col">04</div>
+        <div class="step-content">
+          <h3>App in Google Play Console einreichen</h3>
+          <p>Play Console → "App erstellen" → .aab hochladen → Store-Eintrag (Beschreibung DE+EN, Screenshots, Icon, Datenschutzerklärung-URL) → "Interne Tests" zuerst, dann "Produktion". Review: 3–7 Werktage beim ersten Mal.</p>
+          <div class="info-box"><strong>Datenschutzerklärung:</strong> Pflicht bei Google Play. Da die App keine personenbezogenen Daten verarbeitet und alles lokal läuft, reicht eine sehr kurze Erklärung. Kann als GitHub Pages-Seite gehostet werden.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── PHASE 5 ── -->
+  <div class="phase" id="phase5">
+    <div class="phase-header">
+      <div class="phase-num next">5</div>
+      <div class="phase-title-wrap">
+        <h2>Phase 5 — Amazon Appstore (optional)</h2>
+        <div class="phase-meta">Fire-Tablets · Android APK · 30% Commission · gleiche APK wie Google Play</div>
+      </div>
+      <span class="phase-badge badge-next">Optional, 0€</span>
+    </div>
+    <div class="phase-body">
+      <div class="step">
+        <div class="step-num-col">01</div>
+        <div class="step-content">
+          <h3>Dasselbe Android-APK verwenden</h3>
+          <p>Das aus Phase 4 generierte TWA-APK ist direkt für den Amazon Appstore nutzbar. Amazon Developer Account ist kostenlos. Commission: 30% (kein separates Zahlungssystem möglich — Amazon-Abwicklung Pflicht).</p>
+          <p>→ <strong>developer.amazon.com</strong> · Kategorie: "Education" · Zielgruppe: Fire-Tablet-Nutzer (Amazon Kids+, Schulen)</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── PHASE 6 ── -->
+  <div class="phase" id="phase6">
+    <div class="phase-header">
+      <div class="phase-num next">6</div>
+      <div class="phase-title-wrap">
+        <h2>Phase 6 — Apple App Store (optional)</h2>
+        <div class="phase-meta">iOS/iPadOS · 99 USD/Jahr · Mac erforderlich · Xcode · PWABuilder iOS</div>
+      </div>
+      <span class="phase-badge badge-invest">99$/Jahr + Mac</span>
+    </div>
+    <div class="phase-body">
+      <div class="step">
+        <div class="step-num-col">01</div>
+        <div class="step-content">
+          <h3>Aufwand vs. Ertrag abwägen</h3>
+          <p>Erfordert: Apple Developer Account (99 USD/Jahr), Mac (für Xcode), Signierungszertifikate, App Store Review (7–14 Tage). PWABuilder kann ein iOS-Package erzeugen, aber Apple-Review ist strenger als Google/Microsoft.</p>
+          <p>Für den DACH-Bildungsmarkt: iPad ist verbreitet in Schulen → könnte sich mittelfristig lohnen. <strong>Empfehlung: erst Phase 3+4 stabilisieren, dann iOS evaluieren.</strong></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── PHASE 7 ── -->
+  <div class="phase" id="phase7">
+    <div class="phase-header">
+      <div class="phase-num next">7</div>
+      <div class="phase-title-wrap">
+        <h2>Phase 7 — Preise, Positionierung &amp; Marketing</h2>
+        <div class="phase-meta">Preisempfehlung · SEO-Keywords · Zielgruppen · KDP-Synergie</div>
+      </div>
+      <span class="phase-badge badge-next">Begleitend</span>
+    </div>
+    <div class="phase-body">
+      <div class="step">
+        <div class="step-num-col">01</div>
+        <div class="step-content">
+          <h3>Preisempfehlung je Kanal</h3>
+          <table class="fee-table">
+            <thead><tr><th>Kanal</th><th>Empfohl. Preis</th><th>Netto nach Gebühren</th><th>Commission</th></tr></thead>
+            <tbody>
+              <tr><td>Payhip</td><td class="green">4,99 €</td><td>4,74 €</td><td class="yellow">5%</td></tr>
+              <tr><td>Etsy</td><td class="green">4,99 €</td><td>4,35 €</td><td class="yellow">~13%</td></tr>
+              <tr><td>Ko-fi</td><td class="green">3,99 €</td><td>3,79 €</td><td class="yellow">5%</td></tr>
+              <tr><td>Itch.io</td><td class="green">2,99 € (min)</td><td>2,69–2,99 €</td><td class="green">0–10%</td></tr>
+              <tr><td>Microsoft Store</td><td class="green">1,99–3,99 €</td><td>~85–100%*</td><td class="yellow">0% (eigenes System)</td></tr>
+              <tr><td>Google Play</td><td class="green">1,99–2,99 €</td><td>1,69–2,54 €</td><td class="yellow">15%</td></tr>
+              <tr><td>Amazon Appstore</td><td>1,99–2,99 €</td><td>1,39–2,09 €</td><td class="red">30%</td></tr>
+            </tbody>
+          </table>
+          <p class="dim" style="margin-top:6px;font-size:11px;">* Microsoft: eigenes Zahlungssystem (z. B. Payhip-Link im Store-Eintrag) behält 100% abzgl. Stripe/PayPal</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num-col">02</div>
+        <div class="step-content">
+          <h3>SEO-Keywords (DE/EN)</h3>
+          <div class="code-block">DE: Periodensystem interaktiv, Chemie Lernen App, Periodensystem Quiz,
+    Elemente Karteikarten, Lernspiel Chemie, Periodensystem DACH,
+    Chemie Schule kostenlos, Periodensystem offline
+
+EN: Interactive periodic table, chemistry learning game, periodic table quiz,
+    element flashcards, Leitner chemistry, offline periodic table,
+    chemistry app students, periodic table download</div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num-col">03</div>
+        <div class="step-content">
+          <h3>Zielgruppen</h3>
+          <p><strong>Primär:</strong> Gymnasiasten/Realschüler DE/AT/CH (Chemie Klasse 7–12), Chemie-Studierende (Grundstudium), Lehrer (Unterrichtsmaterial).</p>
+          <p><strong>Sekundär:</strong> Hobbyisten, Eltern als Lernhilfe, international (EN-Modus), Science-Enthusiasten.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num-col">04</div>
+        <div class="step-content">
+          <h3>KDP-Synergie</h3>
+          <p>Das Lernspiel als <strong>digitales Begleitprodukt</strong> zu einem KDP-Chemie-Buch positionieren. Im KDP-Buch (Arbeitsheft, Übungsbuch Periodensystem) auf die App verweisen — und umgekehrt. Cross-Selling erhöht die Conversion beider Produkte erheblich.</p>
+          <div class="info-box"><strong>Idee:</strong> KDP-Print-Buch "Periodensystem Lernkarten & Übungen" + digitale App = Bundle-Angebot auf Etsy/Payhip.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</main>
+</div>
+</body>
+</html>

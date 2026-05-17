@@ -1,0 +1,662 @@
+<!--
+Version 1.0
+Hilfedatei – Interaktives Periodensystem
+DE/EN umschaltbar, passendes Dark-Theme
+-->
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hilfe – Interaktives Periodensystem</title>
+<style>
+  :root {
+    --bg:       #0f1419;
+    --bg-elev:  #1a2128;
+    --bg-card:  #232c36;
+    --border:   #2f3a45;
+    --text:     #e6edf3;
+    --text-dim: #8b96a3;
+    --accent:   #4a9eff;
+    --c-alkali: #ff6b6b;
+    --c-nonmetal:#69db7c;
+    --c-trans:  #ffd43b;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    line-height: 1.6;
+    font-size: 15px;
+  }
+
+  /* ── Layout ── */
+  .page { max-width: 860px; margin: 0 auto; padding: 32px 24px 80px; }
+
+  /* ── Header ── */
+  .site-header {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    gap: 16px; flex-wrap: wrap;
+    margin-bottom: 40px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+  }
+  .site-header h1 {
+    font-size: 22px; font-weight: 700;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .badge-title {
+    background: var(--accent); color: #000;
+    font-size: 10px; font-weight: 800;
+    padding: 2px 7px; border-radius: 4px;
+    text-transform: uppercase; letter-spacing: 0.5px;
+  }
+  .lang-btn {
+    background: var(--bg-card); color: var(--text);
+    border: 1px solid var(--border); border-radius: 6px;
+    padding: 6px 14px; font-size: 13px; cursor: pointer;
+    white-space: nowrap;
+    transition: border-color .15s;
+  }
+  .lang-btn:hover { border-color: var(--accent); }
+
+  /* ── TOC ── */
+  .toc {
+    background: var(--bg-elev); border: 1px solid var(--border);
+    border-radius: 10px; padding: 20px 24px; margin-bottom: 36px;
+  }
+  .toc-title { font-size: 11px; text-transform: uppercase; letter-spacing: 0.6px;
+    color: var(--text-dim); margin-bottom: 12px; }
+  .toc ol { padding-left: 20px; display: flex; flex-direction: column; gap: 5px; }
+  .toc a { color: var(--accent); text-decoration: none; font-size: 14px; }
+  .toc a:hover { text-decoration: underline; }
+
+  /* ── Sections ── */
+  section { margin-bottom: 48px; scroll-margin-top: 24px; }
+  section h2 {
+    font-size: 18px; font-weight: 700; margin-bottom: 16px;
+    padding-bottom: 8px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .sec-icon { font-size: 20px; }
+
+  p { color: var(--text); margin-bottom: 12px; }
+  p:last-child { margin-bottom: 0; }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 8px; padding: 16px 20px; margin-bottom: 12px;
+  }
+  .card h3 {
+    font-size: 14px; font-weight: 700; margin-bottom: 8px;
+    color: var(--text);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .card p { font-size: 14px; color: var(--text-dim); }
+
+  /* ── Step list (Lernmodus) ── */
+  .steps { display: flex; flex-direction: column; gap: 0; }
+  .step {
+    display: flex; gap: 16px; padding: 14px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .step:last-child { border-bottom: none; }
+  .step-num {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: var(--accent); color: #000;
+    font-weight: 800; font-size: 13px;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; margin-top: 2px;
+  }
+  .step-body h3 { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+  .step-body p  { font-size: 14px; color: var(--text-dim); margin: 0; }
+
+  /* ── Leitner diagram ── */
+  .leitner {
+    display: flex; gap: 12px; flex-wrap: wrap;
+    margin: 16px 0;
+  }
+  .leitner-box {
+    flex: 1; min-width: 140px;
+    background: var(--bg-elev); border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px 14px;
+    text-align: center;
+  }
+  .leitner-box .lb-icon { font-size: 24px; margin-bottom: 6px; }
+  .leitner-box .lb-title { font-size: 12px; font-weight: 700; margin-bottom: 4px; }
+  .leitner-box .lb-desc { font-size: 11px; color: var(--text-dim); line-height: 1.4; }
+  .arrow-right { display: flex; align-items: center; color: var(--text-dim);
+    font-size: 20px; flex-shrink: 0; margin-top: 16px; }
+
+  /* ── Key-value table ── */
+  .kv-table { width: 100%; border-collapse: collapse; }
+  .kv-table th {
+    text-align: left; font-size: 11px; text-transform: uppercase;
+    letter-spacing: 0.5px; color: var(--text-dim);
+    padding: 6px 10px; border-bottom: 1px solid var(--border);
+  }
+  .kv-table td {
+    padding: 8px 10px; font-size: 14px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    vertical-align: top;
+  }
+  .kv-table td:first-child { font-weight: 600; white-space: nowrap; width: 35%; }
+  .kv-table td:last-child { color: var(--text-dim); }
+
+  /* ── Shortcut chips ── */
+  .shortcuts { display: flex; flex-wrap: wrap; gap: 10px; }
+  .sc-row { display: flex; align-items: center; gap: 10px; }
+  kbd {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 5px; padding: 3px 10px; font-size: 13px;
+    font-family: 'Consolas', monospace; color: var(--accent);
+    white-space: nowrap;
+  }
+  .sc-desc { font-size: 13px; color: var(--text-dim); }
+
+  /* ── Tip box ── */
+  .tip {
+    border-left: 3px solid var(--accent);
+    background: var(--bg-elev);
+    border-radius: 0 6px 6px 0;
+    padding: 10px 16px; margin-top: 12px;
+    font-size: 13px; color: var(--text-dim);
+  }
+  .tip strong { color: var(--text); }
+
+  /* ── Highlight colors ── */
+  .hl-quiz    { color: var(--c-trans); }
+  .hl-fc      { color: var(--accent); }
+  .hl-deck    { color: var(--c-alkali); }
+  .hl-correct { color: var(--c-nonmetal); }
+
+  /* ── Flow chart ── */
+  .flow {
+    display: flex; flex-wrap: wrap; align-items: center;
+    gap: 6px; margin: 16px 0;
+  }
+  .flow-box {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 6px; padding: 6px 14px; font-size: 13px; font-weight: 600;
+  }
+  .flow-box.accent { background: var(--accent); color: #000; border-color: var(--accent); }
+  .flow-box.warn   { background: rgba(255,107,107,.15); border-color: var(--c-alkali); }
+  .flow-box.ok     { background: rgba(105,219,124,.12); border-color: var(--c-nonmetal); }
+  .flow-arrow { color: var(--text-dim); font-size: 16px; }
+
+  @media (max-width: 600px) {
+    .page { padding: 20px 16px 60px; }
+    .site-header h1 { font-size: 18px; }
+    .arrow-right { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ── HEADER ── -->
+  <header class="site-header">
+    <div>
+      <h1>
+        <span class="badge-title" id="badgeTitle">Hilfe</span>
+        <span id="headerTitle">Interaktives Periodensystem</span>
+      </h1>
+      <p style="font-size:13px;color:var(--text-dim);margin-top:4px;" id="headerSub">
+        Benutzerhandbuch &amp; Lernmodus-Anleitung
+      </p>
+    </div>
+    <button class="lang-btn" id="langBtn" onclick="toggleLang()">English</button>
+  </header>
+
+  <!-- ── TOC ── -->
+  <nav class="toc">
+    <div class="toc-title" id="tocTitle">Inhalt</div>
+    <ol id="tocList">
+      <li><a href="#ueberblick">Überblick</a></li>
+      <li><a href="#navigation">Navigation &amp; Filter</a></li>
+      <li><a href="#detail">Element-Detailansicht</a></li>
+      <li><a href="#lernmodus">Lernmodus</a></li>
+      <li><a href="#quiz">Quiz</a></li>
+      <li><a href="#karteikarten">Karteikarten</a></li>
+      <li><a href="#wiederholung">Wiederholungsstapel (Leitner)</a></li>
+      <li><a href="#wissenstand">Stand des Wissens</a></li>
+      <li><a href="#verbindungen">Lanthanoid-/Actinoid-Verbindung</a></li>
+      <li><a href="#tastatur">Tastenkürzel</a></li>
+    </ol>
+  </nav>
+
+  <!-- ── 1. ÜBERBLICK ── -->
+  <section id="ueberblick">
+    <h2><span class="sec-icon">⚛</span> <span data-de="Überblick" data-en="Overview"></span></h2>
+    <p data-de="Das interaktive Periodensystem enthält alle 118 Elemente mit vollständigen Daten, Filtermöglichkeiten, Trends-Visualisierung und einem integrierten Lernmodus nach dem Leitner-Prinzip."
+       data-en="The interactive periodic table contains all 118 elements with complete data, filter options, trend visualization, and an integrated learning mode based on the Leitner principle."></p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px;margin-top:16px;">
+      <div class="card">
+        <h3>🔬 <span data-de="118 Elemente" data-en="118 Elements"></span></h3>
+        <p data-de="Vollständige Daten: Atommasse, Elektronenkonfiguration, Schmelz-/Siedepunkt, Dichte, Entdecker, Bedeutung." data-en="Complete data: atomic mass, electron configuration, melting/boiling point, density, discoverer, significance."></p>
+      </div>
+      <div class="card">
+        <h3>🎯 <span data-de="Lernmodus" data-en="Learning Mode"></span></h3>
+        <p data-de="Quiz (20 Fragen), Karteikarten, Wiederholungsstapel mit Leitner-System." data-en="Quiz (20 questions), flashcards, review deck with Leitner system."></p>
+      </div>
+      <div class="card">
+        <h3>📊 <span data-de="Trends" data-en="Trends"></span></h3>
+        <p data-de="7 physikalische Eigenschaften als Farbverlauf über das gesamte Periodensystem darstellbar." data-en="7 physical properties shown as a color gradient across the entire periodic table."></p>
+      </div>
+      <div class="card">
+        <h3>🌐 <span data-de="Zweisprachig" data-en="Bilingual"></span></h3>
+        <p data-de="Alle Elementnamen, Labels und Beschreibungen in Deutsch und Englisch umschaltbar." data-en="All element names, labels, and descriptions switchable between German and English."></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 2. NAVIGATION ── -->
+  <section id="navigation">
+    <h2><span class="sec-icon">🔍</span> <span data-de="Navigation &amp; Filter" data-en="Navigation &amp; Filters"></span></h2>
+    <table class="kv-table">
+      <thead>
+        <tr>
+          <th data-de="Funktion" data-en="Feature"></th>
+          <th data-de="Beschreibung" data-en="Description"></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td data-de="🔍 Suche" data-en="🔍 Search"></td>
+          <td data-de="Suche nach Symbol (z. B. Au), Name (z. B. Gold) oder Ordnungszahl (z. B. 79). Nicht passende Elemente werden ausgegraut." data-en="Search by symbol (e.g. Au), name (e.g. Gold), or atomic number (e.g. 79). Non-matching elements are dimmed."></td>
+        </tr>
+        <tr>
+          <td data-de="Aggregat" data-en="State"></td>
+          <td data-de="Filtert nach Aggregatzustand bei Raumtemperatur: Fest / Flüssig / Gasförmig. (Br und Hg sind die einzigen flüssigen Elemente.)" data-en="Filters by state at room temperature: Solid / Liquid / Gas. (Br and Hg are the only liquid elements.)"></td>
+        </tr>
+        <tr>
+          <td data-de="Vorkommen" data-en="Occurrence"></td>
+          <td data-de="Natürlich: 90 Elemente, die in der Natur vorkommen. Synthetisch: 28 Elemente, die ausschließlich künstlich hergestellt werden (Tc, Pm, 93–118)." data-en="Natural: 90 elements found in nature. Synthetic: 28 elements produced only artificially (Tc, Pm, 93–118)."></td>
+        </tr>
+        <tr>
+          <td data-de="Trend" data-en="Trend"></td>
+          <td data-de="Überlagert das Periodensystem mit einem Farbverlauf für eine physikalische Eigenschaft (z. B. Elektronegativität, Atomradius, Schmelzpunkt). Klarer Farbbalken mit Min/Max-Werten." data-en="Overlays the periodic table with a color gradient for a physical property (e.g. electronegativity, atomic radius, melting point). Clear color bar with min/max values."></td>
+        </tr>
+        <tr>
+          <td data-de="Legende" data-en="Legend"></td>
+          <td data-de="Klick auf eine Kategorie (z. B. Übergangsmetalle) filtert das Periodensystem auf diese Gruppe. Erneuter Klick hebt den Filter auf." data-en="Click a category (e.g. transition metals) to filter the periodic table to that group. Click again to clear the filter."></td>
+        </tr>
+        <tr>
+          <td data-de="Reset" data-en="Reset"></td>
+          <td data-de="Setzt alle Filter und die Suche auf die Ausgangswerte zurück." data-en="Resets all filters and the search to their default values."></td>
+        </tr>
+        <tr>
+          <td data-de="DE / EN" data-en="DE / EN"></td>
+          <td data-de="Schaltet alle Texte (Elementnamen, Labels, Beschreibungen) zwischen Deutsch und Englisch um." data-en="Switches all texts (element names, labels, descriptions) between German and English."></td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ── 3. ELEMENT-DETAIL ── -->
+  <section id="detail">
+    <h2><span class="sec-icon">📋</span> <span data-de="Element-Detailansicht" data-en="Element Detail View"></span></h2>
+    <p data-de="Klick auf ein Element öffnet eine Detailansicht mit allen verfügbaren Daten."
+       data-en="Clicking an element opens a detail view with all available data."></p>
+    <table class="kv-table" style="margin-top:12px;">
+      <thead>
+        <tr>
+          <th data-de="Bereich" data-en="Section"></th>
+          <th data-de="Inhalt" data-en="Content"></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td data-de="Kopfbereich" data-en="Header"></td>
+          <td data-de="Farbiges Element-Badge, Name, Kategorie, Block (s/p/d/f), Vorkommen (natürlich/synthetisch)." data-en="Colored element badge, name, category, block (s/p/d/f), occurrence (natural/synthetic)."></td>
+        </tr>
+        <tr>
+          <td data-de="Eigenschaften" data-en="Properties"></td>
+          <td data-de="Zweiteilige Tabelle: Ordnungszahl, Atommasse, Periode, Gruppe, Aggregatzustand, Elektronegativität, Atomradius, Ionisierungsenergie, Schmelzpunkt, Siedepunkt, Dichte, Entdeckungsjahr &amp; Entdecker." data-en="Two-column table: atomic number, atomic mass, period, group, state, electronegativity, atomic radius, ionization energy, melting point, boiling point, density, discovery year &amp; discoverer."></td>
+        </tr>
+        <tr>
+          <td data-de="Elektronenkonfiguration" data-en="Electron Configuration"></td>
+          <td data-en="Abbreviated notation and shell occupancy (K, L, M, N, ...)." data-de="Kurzschreibweise und Schalenbelegung (K, L, M, N, ...)."></td>
+        </tr>
+        <tr>
+          <td data-de="Beschreibung" data-en="Description"></td>
+          <td data-de="Kurze allgemeine Beschreibung des Elements." data-en="Brief general description of the element."></td>
+        </tr>
+        <tr>
+          <td data-de="Bedeutung für Wissenschaft und Technik" data-en="Significance for Science and Technology"></td>
+          <td data-de="Konkrete Anwendungen in Wissenschaft, Technologie und Industrie für alle 118 Elemente." data-en="Concrete applications in science, technology, and industry for all 118 elements."></td>
+        </tr>
+      </tbody>
+    </table>
+    <div class="tip">
+      <strong data-de="Tipp:" data-en="Tip:"></strong>
+      <span data-de=" ESC-Taste oder Klick außerhalb des Fensters schließt die Detailansicht." data-en=" Press ESC or click outside the window to close the detail view."></span>
+    </div>
+  </section>
+
+  <!-- ── 4. LERNMODUS (Überblick) ── -->
+  <section id="lernmodus">
+    <h2><span class="sec-icon">🎓</span> <span data-de="Lernmodus – Überblick" data-en="Learning Mode – Overview"></span></h2>
+    <p data-de="Der Lernmodus folgt dem bewährten Leitner-Prinzip aus dem Vokabellernen: Falsch beantwortete Elemente kommen in einen Wiederholungsstapel und werden so lange wiederholt, bis man sie beherrscht."
+       data-en="The learning mode follows the proven Leitner principle from vocabulary learning: incorrectly answered elements go into a review deck and are repeated until mastered."></p>
+
+    <div class="flow" style="margin-top:20px;">
+      <div class="flow-box accent" data-de="Quiz (20 Fragen)" data-en="Quiz (20 Questions)"></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box" data-de="Ergebnis-Tabelle" data-en="Results Table"></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box warn" data-de="Falsche → Wiederholungsstapel" data-en="Wrong → Review Deck"></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box" data-de="Karteikarten / Deck-Quiz" data-en="Flashcards / Deck Quiz"></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-box ok" data-de="Richtig → aus Stapel entfernt" data-en="Correct → Removed from deck"></div>
+    </div>
+
+    <p style="margin-top:16px;" data-de="Der Wiederholungsstapel bleibt für die gesamte Sitzung gespeichert. Über den 🔄-Button im Header ist er jederzeit zugänglich."
+       data-en="The review deck is stored for the entire session. It can be accessed at any time via the 🔄 button in the header."></p>
+  </section>
+
+  <!-- ── 5. QUIZ ── -->
+  <section id="quiz">
+    <h2><span class="sec-icon">🎯</span> <span data-de="Quiz" data-en="Quiz"></span></h2>
+    <p data-de="Starte das Quiz über den Button <strong>🎯 Quiz</strong> oben rechts. Das Quiz umfasst immer genau 20 Fragen."
+       data-en="Start the quiz using the <strong>🎯 Quiz</strong> button in the top right. The quiz always contains exactly 20 questions."></p>
+
+    <div class="steps" style="margin-top:20px;">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <h3 data-de="Fragentypen (zufällig gemischt)" data-en="Question Types (randomly mixed)"></h3>
+          <p data-de="Symbol → Name · Name → Symbol · Name → Ordnungszahl · Ordnungszahl → Name · Name → Kategorie" data-en="Symbol → Name · Name → Symbol · Name → Atomic number · Atomic number → Name · Name → Category"></p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <h3 data-de="Fortschrittsbalken" data-en="Progress Bar"></h3>
+          <p data-de="Oben im Quiz-Fenster zeigt ein Balken, wie weit du im aktuellen Durchgang bist (Frage 5 von 20)." data-en="A bar at the top of the quiz window shows how far you are in the current round (Question 5 of 20)."></p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <h3 data-de="Sofortiges Feedback" data-en="Immediate Feedback"></h3>
+          <p data-de="Nach jeder Antwort wird die richtige Antwort grün, die falsche rot markiert. Kurze Bestätigung oder Korrektur sichtbar." data-en="After each answer, the correct one is highlighted green, the wrong one red. Brief confirmation or correction is shown."></p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <h3 data-de="Ergebnis-Tabelle (nach Frage 20)" data-en="Results Table (after Question 20)"></h3>
+          <p data-de="Gesamtpunktzahl mit Farbbalken (rot/gelb/grün). Scrollbare Tabelle aller 20 Fragen: Element-Badge, Fragetext, deine Antwort, richtige Antwort, ✓/✗." data-en="Total score with color bar (red/yellow/green). Scrollable table of all 20 questions: element badge, question text, your answer, correct answer, ✓/✗."></p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">5</div>
+        <div class="step-body">
+          <h3 class="hl-deck" data-de="Automatische Stapel-Aktualisierung" data-en="Automatic Deck Update"></h3>
+          <p data-de="Alle falsch beantworteten Elemente werden automatisch in den Wiederholungsstapel übernommen. Eine Meldung zeigt, wie viele neu hinzugekommen sind." data-en="All incorrectly answered elements are automatically added to the review deck. A message shows how many were newly added."></p>
+        </div>
+      </div>
+    </div>
+
+    <div class="tip" style="margin-top:20px;">
+      <strong data-de="Pool:" data-en="Pool:"></strong>
+      <span data-de=" Das reguläre Quiz zieht aus den ersten 86 Elementen (H bis Rn), da die Transurane zu selten sind, um sinnvoll abgefragt zu werden." data-en=" The regular quiz draws from the first 86 elements (H to Rn), as the transuranic elements are too rare to quiz meaningfully."></span>
+    </div>
+  </section>
+
+  <!-- ── 6. KARTEIKARTEN ── -->
+  <section id="karteikarten">
+    <h2><span class="sec-icon">🃏</span> <span data-de="Karteikarten" data-en="Flashcards"></span></h2>
+    <p data-de="Starte über den Button <strong>🃏 Karteikarten</strong> oben rechts. Die Karten werden zufällig gemischt."
+       data-en="Start with the <strong>🃏 Flashcards</strong> button in the top right. Cards are shuffled randomly."></p>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px;">
+      <div class="card">
+        <h3>🔵 <span data-de="Vorderseite" data-en="Front Side"></span></h3>
+        <p data-de="Zeigt das Element-Symbol und die Ordnungszahl in der Kategoriefarbe. Hier wird dein Wissen abgerufen." data-en="Shows the element symbol and atomic number in the category color. This is where your knowledge is tested."></p>
+      </div>
+      <div class="card">
+        <h3>🟡 <span data-de="Rückseite" data-en="Back Side"></span></h3>
+        <p data-de="Klick auf die Karte dreht sie um. Zeigt: Name, Atommasse, Aggregatzustand, Vorkommen, Elektronenkonfiguration, Entdeckung, Bedeutung für Wissenschaft &amp; Technik, Synthese-Hintergrund (nur synthetische Elemente)." data-en="Click the card to flip it. Shows: name, atomic mass, state, occurrence, electron configuration, discovery, significance for science &amp; technology, synthesis background (synthetic elements only)."></p>
+      </div>
+    </div>
+
+    <table class="kv-table" style="margin-top:16px;">
+      <thead>
+        <tr>
+          <th data-de="Schaltfläche" data-en="Button"></th>
+          <th data-de="Funktion" data-en="Function"></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>← / →</td>
+          <td data-de="Vorherige/nächste Karteikarte." data-en="Previous/next flashcard."></td>
+        </tr>
+        <tr>
+          <td data-de="Fortschrittsbalken" data-en="Progress bar"></td>
+          <td data-de="Zeigt deine aktuelle Position im Kartenstapel." data-en="Shows your current position in the card deck."></td>
+        </tr>
+        <tr>
+          <td data-de="🔄 Wiederholung" data-en="🔄 Review"></td>
+          <td data-de="Wechselt direkt zum Wiederholungsstapel (erscheint nur, wenn Stapel nicht leer)." data-en="Switches directly to the review deck (appears only when the deck is not empty)."></td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ── 7. WIEDERHOLUNGSSTAPEL ── -->
+  <section id="wiederholung">
+    <h2><span class="sec-icon">🔄</span> <span data-de="Wiederholungsstapel – Das Leitner-System" data-en="Review Deck – The Leitner System"></span></h2>
+    <p data-de="Der Wiederholungsstapel ist das Herzstück des Lernmodus. Er funktioniert wie die bekannte Lernkartei-Methode nach Sebastian Leitner."
+       data-en="The review deck is the heart of the learning mode. It works like the well-known flashcard method by Sebastian Leitner."></p>
+
+    <div class="leitner" style="margin-top:20px;">
+      <div class="leitner-box">
+        <div class="lb-icon">❌</div>
+        <div class="lb-title" data-de="Falsch beantwortet" data-en="Answered incorrectly"></div>
+        <div class="lb-desc" data-de="Element landet im Wiederholungsstapel. Bleibt darin bis zur korrekten Antwort." data-en="Element goes into the review deck. Stays there until answered correctly."></div>
+      </div>
+      <div class="arrow-right">→</div>
+      <div class="leitner-box" style="border-color:var(--c-alkali);">
+        <div class="lb-icon">🗂</div>
+        <div class="lb-title" data-de="Wiederholungsstapel" data-en="Review Deck"></div>
+        <div class="lb-desc" data-de="Karteikarten der falsch beantworteten Elemente. Über 🔄-Button im Header oder aus dem Quiz-Ergebnis zugänglich." data-en="Flashcards of incorrectly answered elements. Accessible via the 🔄 button in the header or from the quiz results."></div>
+      </div>
+      <div class="arrow-right">→</div>
+      <div class="leitner-box" style="border-color:var(--c-nonmetal);">
+        <div class="lb-icon">✅</div>
+        <div class="lb-title" data-de="Richtig im Deck-Quiz" data-en="Correct in Deck Quiz"></div>
+        <div class="lb-desc" data-de="Element fliegt aus dem Stapel heraus. Der Stapel wird kleiner." data-en="Element is removed from the deck. The deck gets smaller."></div>
+      </div>
+    </div>
+
+    <div style="margin-top:24px;">
+      <p style="font-weight:600;margin-bottom:12px;" data-de="Was kann ich im Wiederholungsstapel tun?" data-en="What can I do in the review deck?"></p>
+      <table class="kv-table">
+        <tbody>
+          <tr>
+            <td data-de="Karteikarten durchgehen" data-en="Browse flashcards"></td>
+            <td data-de="Alle falsch beantworteten Elemente als Karteikarten ansehen und wiederholen." data-en="View and review all incorrectly answered elements as flashcards."></td>
+          </tr>
+          <tr>
+            <td data-de="✓ Aus Stapel entfernen" data-en="✓ Remove from deck"></td>
+            <td data-de="Wenn du ein Element auf der Karteikarte sicher kennst, kannst du es manuell aus dem Stapel entfernen." data-en="If you're confident about an element on the flashcard, you can manually remove it from the deck."></td>
+          </tr>
+          <tr>
+            <td data-de="Quiz aus Stapel" data-en="Quiz from deck"></td>
+            <td data-de="Startet ein Quiz nur mit den Elementen im Wiederholungsstapel. Richtig beantwortete Elemente werden dabei automatisch entfernt. Verfügbar ab 4 Elementen im Stapel." data-en="Starts a quiz with only the elements in the review deck. Correctly answered elements are automatically removed. Available with 4+ elements in the deck."></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="tip" style="margin-top:16px;">
+      <strong data-de="Empfohlener Lernrhythmus:" data-en="Recommended learning rhythm:"></strong>
+      <span data-de=" 1. Reguläres Quiz (20 Fragen) → 2. Wiederholungsstapel als Karteikarten durchgehen → 3. Deck-Quiz starten → 4. Wiederholen bis Stapel leer." data-en=" 1. Regular quiz (20 questions) → 2. Browse review deck as flashcards → 3. Start deck quiz → 4. Repeat until deck is empty."></span>
+    </div>
+  </section>
+
+  <!-- ── 8. STAND DES WISSENS ── -->
+  <section id="wissenstand">
+    <h2><span class="sec-icon">📊</span> <span data-de="Stand des Wissens" data-en="Knowledge Status"></span></h2>
+    <p data-de="Nach dem ersten abgeschlossenen Quiz erscheint im Header eine Statuszeile, die deinen Lernfortschritt der gesamten Sitzung zusammenfasst."
+       data-en="After completing the first quiz, a status line appears in the header summarizing your overall learning progress for the session."></p>
+
+    <table class="kv-table" style="margin-top:16px;">
+      <tbody>
+        <tr>
+          <td data-de="📊 Stand des Wissens" data-en="📊 Knowledge Status"></td>
+          <td data-de="Zeigt kumulativ: richtige Antworten / alle Antworten und Prozentsatz (z. B. 47/60 = 78 %)." data-en="Shows cumulatively: correct answers / all answers and percentage (e.g. 47/60 = 78%)."></td>
+        </tr>
+        <tr>
+          <td data-de="🔄 Wiederholung [N]" data-en="🔄 Review [N]"></td>
+          <td data-de="Badge mit der aktuellen Anzahl an Elementen im Wiederholungsstapel. Direktklick öffnet den Stapel." data-en="Badge showing the current number of elements in the review deck. Click directly to open the deck."></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="tip" style="margin-top:12px;">
+      <span data-de="Der Stand des Wissens bleibt nur für die aktuelle Browsersitzung gespeichert und wird bei einem Neuladen der Seite zurückgesetzt." data-en="The knowledge status is stored only for the current browser session and resets when the page is reloaded."></span>
+    </div>
+  </section>
+
+  <!-- ── 9. VERBINDUNGSLINIEN ── -->
+  <section id="verbindungen">
+    <h2><span class="sec-icon">↕</span> <span data-de="Lanthanoid- und Actinoid-Verbindung" data-en="Lanthanide and Actinide Connection"></span></h2>
+    <p data-de="Im klassischen Periodensystem werden die Lanthanoide (La–Lu, Nr. 57–71) und Actinoide (Ac–Lr, Nr. 89–103) aus Platzgründen unterhalb des Hauptblocks dargestellt. Zwei Marker-Zellen in Periode 6 und 7 verweisen auf diese ausgelagerten Reihen."
+       data-en="In the classic periodic table, the lanthanides (La–Lu, No. 57–71) and actinides (Ac–Lr, No. 89–103) are shown below the main block for space reasons. Two marker cells in periods 6 and 7 point to these separate rows."></p>
+
+    <table class="kv-table" style="margin-top:16px;">
+      <tbody>
+        <tr>
+          <td data-de="Verbindungslinie" data-en="Connection Line"></td>
+          <td data-de="Eine schwarze vertikale Linie mit Kreispunkten verbindet jeden Marker optisch mit der zugehörigen Element-Reihe unterhalb." data-en="A black vertical line with circle dots visually connects each marker to its corresponding element row below."></td>
+        </tr>
+        <tr>
+          <td data-de="Hover-Effekt" data-en="Hover Effect"></td>
+          <td data-de="Fährt man mit der Maus über den Marker oder über ein Lanthanoid/Actinoid, wird die Verbindungslinie hervorgehoben und animiert." data-en="Hovering over the marker or a lanthanide/actinide highlights and animates the connecting line."></td>
+        </tr>
+        <tr>
+          <td data-de="Klick auf Marker" data-en="Click on Marker"></td>
+          <td data-en="Scrolls to the lanthanide/actinide row and pulses it briefly so the connection is clear." data-de="Scrollt zur Lanthanoid-/Actinoid-Reihe und lässt diese kurz aufleuchten, damit die Verbindung klar sichtbar wird."></td>
+        </tr>
+        <tr>
+          <td data-de="Tooltip" data-en="Tooltip"></td>
+          <td data-de="Hält man die Maus über den Marker, erscheint ein erklärender Tooltip." data-en="Hovering over the marker displays an explanatory tooltip."></td>
+        </tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- ── 10. TASTENKÜRZEL ── -->
+  <section id="tastatur">
+    <h2><span class="sec-icon">⌨</span> <span data-de="Tastenkürzel" data-en="Keyboard Shortcuts"></span></h2>
+    <div class="shortcuts" style="flex-direction:column;gap:12px;">
+      <div class="sc-row">
+        <kbd>ESC</kbd>
+        <span class="sc-desc" data-de="Schließt das aktuelle Modal (Element-Detail, Quiz, Karteikarten)." data-en="Closes the current modal (element detail, quiz, flashcards)."></span>
+      </div>
+      <div class="sc-row">
+        <kbd data-de="Klick außerhalb" data-en="Click outside"></kbd>
+        <span class="sc-desc" data-de="Schließt ebenfalls jedes offene Modal-Fenster." data-en="Also closes any open modal window."></span>
+      </div>
+      <div class="sc-row">
+        <kbd data-de="Klick auf Element" data-en="Click on Element"></kbd>
+        <span class="sc-desc" data-de="Öffnet die Detailansicht des Elements." data-en="Opens the element detail view."></span>
+      </div>
+      <div class="sc-row">
+        <kbd data-de="Klick auf Legende" data-en="Click on Legend"></kbd>
+        <span class="sc-desc" data-de="Filtert das Periodensystem auf die gewählte Kategorie." data-en="Filters the periodic table to the selected category."></span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── FOOTER ── -->
+  <footer style="border-top:1px solid var(--border);padding-top:20px;
+    font-size:12px;color:var(--text-dim);display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+    <span data-de="Interaktives Periodensystem – Version 2.2" data-en="Interactive Periodic Table – Version 2.2"></span>
+    &nbsp;·&nbsp;
+    <a href="impressum.html" target="_blank" style="color:var(--text-dim);text-decoration:none;">Impressum</a>
+    &nbsp;·&nbsp;
+    <a href="datenschutz.html" target="_blank" style="color:var(--text-dim);text-decoration:none;">Datenschutz</a>
+    <span data-de="Alle Daten: IUPAC-Standard, Atommassen 2021" data-en="All data: IUPAC standard, atomic masses 2021"></span>
+  </footer>
+
+</div>
+
+<script>
+let lang = "de";
+
+function toggleLang() {
+  lang = lang === "de" ? "en" : "de";
+  document.getElementById("langBtn").textContent = lang === "de" ? "English" : "Deutsch";
+  document.documentElement.lang = lang;
+  applyLang();
+}
+
+function applyLang() {
+  // Elements with data-de / data-en attributes
+  document.querySelectorAll("[data-de],[data-en]").forEach(el => {
+    const text = el.getAttribute("data-" + lang);
+    if (text !== null) el.innerHTML = text;
+  });
+
+  // Special: title + subtitle
+  document.getElementById("badgeTitle").textContent = lang === "de" ? "Hilfe" : "Help";
+  document.getElementById("headerSub").textContent = lang === "de"
+    ? "Benutzerhandbuch & Lernmodus-Anleitung"
+    : "User Guide & Learning Mode Reference";
+
+  // TOC links
+  const tocItems = {
+    de: [
+      ["#ueberblick",   "Überblick"],
+      ["#navigation",   "Navigation &amp; Filter"],
+      ["#detail",       "Element-Detailansicht"],
+      ["#lernmodus",    "Lernmodus"],
+      ["#quiz",         "Quiz"],
+      ["#karteikarten", "Karteikarten"],
+      ["#wiederholung", "Wiederholungsstapel (Leitner)"],
+      ["#wissenstand",  "Stand des Wissens"],
+      ["#verbindungen", "Lanthanoid-/Actinoid-Verbindung"],
+      ["#tastatur",     "Tastenkürzel"],
+    ],
+    en: [
+      ["#ueberblick",   "Overview"],
+      ["#navigation",   "Navigation &amp; Filters"],
+      ["#detail",       "Element Detail View"],
+      ["#lernmodus",    "Learning Mode"],
+      ["#quiz",         "Quiz"],
+      ["#karteikarten", "Flashcards"],
+      ["#wiederholung", "Review Deck (Leitner)"],
+      ["#wissenstand",  "Knowledge Status"],
+      ["#verbindungen", "Lanthanide/Actinide Connection"],
+      ["#tastatur",     "Keyboard Shortcuts"],
+    ]
+  };
+  document.getElementById("tocTitle").textContent = lang === "de" ? "Inhalt" : "Contents";
+  const toc = document.getElementById("tocList");
+  toc.innerHTML = tocItems[lang].map(([href, label]) =>
+    `<li><a href="${href}">${label}</a></li>`
+  ).join("");
+
+  // Page title
+  document.title = lang === "de"
+    ? "Hilfe – Interaktives Periodensystem"
+    : "Help – Interactive Periodic Table";
+  document.getElementById("headerTitle").textContent = lang === "de"
+    ? "Interaktives Periodensystem"
+    : "Interactive Periodic Table";
+}
+
+// Init
+applyLang();
+</script>
+</body>
+</html>
