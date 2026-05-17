@@ -33,5 +33,35 @@
       "url": "./periodensystem.html#flashcards",
       "icons": [{ "src": "icons/icon-96.png", "sizes": "96x96" }]
     }
+  ],
+  "screenshots": [
+    {
+      "src": "screenshots/desktop.png",
+      "sizes": "2400x1350",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Interaktives Periodensystem - Hauptansicht"
+    },
+    {
+      "src": "screenshots/desktop_quiz.png",
+      "sizes": "2400x1350",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Quiz-Modus mit Leitner-Lernsystem"
+    },
+    {
+      "src": "screenshots/desktop_trend_meltingpoint.png",
+      "sizes": "2400x1350",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Trend-Visualisierung Schmelzpunkt"
+    },
+    {
+      "src": "screenshots/mobile.png",
+      "sizes": "1290x2796",
+      "type": "image/png",
+      "form_factor": "narrow",
+      "label": "Mobile Ansicht"
+    }
   ]
 }
