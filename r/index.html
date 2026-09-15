@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Leave a review / Rezension schreiben</title>
+<!--
+  DaKoCreatives — Review-Weiche  |  Version 1.0  |  Stand: 2026-09-15
+  Eine einzige Datei fuer ALLE Buecher. Die ASIN kommt als Query-Parameter:
+      /r/?a=B0GZPDVFBC
+  Neue Titel brauchen KEIN neues Deployment.
+  Changelog:
+    1.0  Erstversion: Zeitzonen-Weiche + Sprachfallback + manuelle Auswahl
+-->
+<style>
+  :root{
+    --navy:#223966; --ink:#1b1b1b; --muted:#5a5a5a;
+    --line:#d8dce5; --bg:#ffffff; --accent:#c9a84c;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--ink);
+    font:18px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    padding:24px 16px 48px; display:flex; justify-content:center;
+  }
+  main{width:100%; max-width:520px}
+  h1{font-size:26px; line-height:1.25; color:var(--navy); margin:0 0 14px}
+  p{margin:0 0 16px; color:var(--muted)}
+  .asin{font-size:14px; color:var(--muted); letter-spacing:.04em}
+  a.cta{
+    display:block; background:var(--navy); color:#fff; text-decoration:none;
+    text-align:center; font-size:21px; font-weight:700;
+    padding:20px 18px; border-radius:10px; margin:24px 0 10px;
+  }
+  a.cta:focus{outline:3px solid var(--accent); outline-offset:3px}
+  .count{font-size:15px; color:var(--muted); text-align:center; margin-bottom:28px}
+  details{border-top:1px solid var(--line); padding-top:18px}
+  summary{cursor:pointer; font-size:16px; color:var(--navy); font-weight:600}
+  ul{list-style:none; margin:16px 0 0; padding:0;
+     display:grid; grid-template-columns:repeat(auto-fill,minmax(150px,1fr)); gap:8px}
+  ul a{display:block; padding:12px 10px; border:1px solid var(--line);
+       border-radius:8px; text-decoration:none; color:var(--ink); font-size:16px}
+  footer{margin-top:34px; font-size:13px; color:var(--muted); text-align:center}
+  .err{background:#fdf3f3; border:1px solid #e6c9c9; padding:16px; border-radius:8px}
+</style>
+</head>
+<body>
+<main>
+  <div id="app" class="err" hidden></div>
+
+  <h1 id="head"></h1>
+  <p id="sub"></p>
+  <a class="cta" id="go" href="#"></a>
+  <div class="count" id="count"></div>
+
+  <details>
+    <summary id="othersum"></summary>
+    <ul id="others"></ul>
+  </details>
+
+  <footer>DaKoCreatives</footer>
+</main>
+
+<script>
+(function(){
+  "use strict";
+
+  // Marketplace-Liste. Reihenfolge = Anzeige in der manuellen Auswahl.
+  var MARKETS = [
+    {d:"amazon.de",     n:"Deutschland"},
+    {d:"amazon.com",    n:"United States"},
+    {d:"amazon.co.uk",  n:"United Kingdom"},
+    {d:"amazon.fr",     n:"France"},
+    {d:"amazon.it",     n:"Italia"},
+    {d:"amazon.es",     n:"España"},
+    {d:"amazon.nl",     n:"Nederland"},
+    {d:"amazon.se",     n:"Sverige"},
+    {d:"amazon.pl",     n:"Polska"},
+    {d:"amazon.ca",     n:"Canada"},
+    {d:"amazon.com.au", n:"Australia"},
+    {d:"amazon.co.jp",  n:"日本"},
+    {d:"amazon.in",     n:"India"},
+    {d:"amazon.com.br", n:"Brasil"},
+    {d:"amazon.com.mx", n:"México"}
+  ];
+
+  // Zeitzone -> Marketplace. Zuverlaessiger als die Browsersprache:
+  // ein deutsches Geraet mit englischer UI steht trotzdem in Europe/Berlin.
+  var TZ = {
+    "Europe/Berlin":"amazon.de","Europe/Vienna":"amazon.de","Europe/Zurich":"amazon.de",
+    "Europe/Busingen":"amazon.de","Europe/Luxembourg":"amazon.de",
+    "Europe/London":"amazon.co.uk","Europe/Belfast":"amazon.co.uk","Europe/Dublin":"amazon.co.uk",
+    "Europe/Paris":"amazon.fr","Europe/Monaco":"amazon.fr",
+    "Europe/Rome":"amazon.it","Europe/Vatican":"amazon.it","Europe/San_Marino":"amazon.it",
+    "Europe/Madrid":"amazon.es","Atlantic/Canary":"amazon.es","Africa/Ceuta":"amazon.es",
+    "Europe/Amsterdam":"amazon.nl","Europe/Brussels":"amazon.nl",
+    "Europe/Stockholm":"amazon.se","Europe/Oslo":"amazon.se","Europe/Copenhagen":"amazon.se",
+    "Europe/Helsinki":"amazon.se",
+    "Europe/Warsaw":"amazon.pl",
+    "America/Toronto":"amazon.ca","America/Vancouver":"amazon.ca","America/Edmonton":"amazon.ca",
+    "America/Winnipeg":"amazon.ca","America/Halifax":"amazon.ca","America/St_Johns":"amazon.ca",
+    "America/Sao_Paulo":"amazon.com.br","America/Bahia":"amazon.com.br",
+    "America/Mexico_City":"amazon.com.mx","America/Monterrey":"amazon.com.mx",
+    "America/Tijuana":"amazon.com.mx","America/Cancun":"amazon.com.mx",
+    "Asia/Tokyo":"amazon.co.jp",
+    "Asia/Kolkata":"amazon.in","Asia/Calcutta":"amazon.in",
+    "Australia/Sydney":"amazon.com.au","Australia/Melbourne":"amazon.com.au",
+    "Australia/Brisbane":"amazon.com.au","Australia/Perth":"amazon.com.au",
+    "Australia/Adelaide":"amazon.com.au","Pacific/Auckland":"amazon.com.au"
+  };
+
+  // Sprachpraefix -> Marketplace (nur als Fallback, wenn die Zeitzone nichts hergibt)
+  var LANG = {de:"amazon.de", fr:"amazon.fr", it:"amazon.it", es:"amazon.es",
+              nl:"amazon.nl", sv:"amazon.se", pl:"amazon.pl", ja:"amazon.co.jp",
+              pt:"amazon.com.br"};
+
+  var T = {
+    de:{
+      head:"Rezension schreiben",
+      sub:"Sie werden gleich zu Amazon weitergeleitet, wo Sie Ihre Rezension zu diesem Buch schreiben können.",
+      cta:"Jetzt bewerten auf %s",
+      count:"Automatische Weiterleitung in %d Sekunden …",
+      now:"Weiterleitung läuft …",
+      other:"Anderes Land wählen",
+      errhead:"Link unvollständig",
+      errbody:"Diesem Link fehlt die Buchkennung. Bitte scannen Sie den QR-Code im Buch noch einmal, oder suchen Sie das Buch direkt bei Amazon und nutzen Sie dort „Rezension schreiben“.",
+      note:"Hinweis: Amazon verlangt für Rezensionen ein Mindestmaß an Einkäufen im jeweiligen Land."
+    },
+    fr:{
+      head:"Laisser un avis",
+      sub:"Vous allez être redirigé vers Amazon, où vous pourrez rédiger votre avis sur ce livre.",
+      cta:"Donner mon avis sur %s",
+      count:"Redirection dans %d secondes …",
+      now:"Redirection …",
+      other:"Choisir un autre pays",
+      errhead:"Lien incomplet",
+      errbody:"Il manque l'identifiant du livre dans ce lien. Merci de scanner à nouveau le code QR du livre, ou de rechercher le livre sur Amazon et d'utiliser « Rédiger un avis ».",
+      note:"Remarque : Amazon exige un montant minimum d'achats dans chaque pays avant de pouvoir publier des avis."
+    },
+    en:{
+      head:"Leave a review",
+      sub:"You are being taken to Amazon, where you can write your review of this book.",
+      cta:"Write a review on %s",
+      count:"Redirecting in %d seconds …",
+      now:"Redirecting …",
+      other:"Choose a different country",
+      errhead:"Incomplete link",
+      errbody:"This link is missing the book identifier. Please scan the QR code in the book again, or find the book on Amazon and use “Write a review” there.",
+      note:"Note: Amazon requires a minimum amount of purchases in each country before you can post reviews."
+    }
+  };
+
+  function pickLang(){
+    var l = (navigator.language || "en").slice(0,2).toLowerCase();
+    return T[l] ? l : (l === "at" || l === "ch" ? "de" : "en");
+  }
+
+  function pickMarket(){
+    try{
+      var tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+      if (tz && TZ[tz]) return TZ[tz];
+      if (tz && tz.indexOf("America/") === 0) return "amazon.com";
+      if (tz && tz.indexOf("Europe/") === 0)  return "amazon.de";
+    }catch(e){ /* Intl fehlt -> Sprachfallback */ }
+    var l = (navigator.language || "").slice(0,2).toLowerCase();
+    return LANG[l] || "amazon.com";
+  }
+
+  function reviewUrl(domain, asin){
+    return "https://www." + domain + "/review/create-review?&asin=" + encodeURIComponent(asin);
+  }
+
+  var lang = pickLang();
+  var t = T[lang];
+  document.documentElement.lang = lang;
+
+  // ASIN aus ?a= ODER ?asin= ODER #ASIN lesen — tolerant gegenueber Tippfehlern.
+  var q = new URLSearchParams(location.search);
+  var asin = (q.get("a") || q.get("asin") || location.hash.replace("#","") || "").trim().toUpperCase();
+
+  if (!/^[A-Z0-9]{10}$/.test(asin)){
+    var box = document.getElementById("app");
+    box.hidden = false;
+    box.innerHTML = "<strong>" + t.errhead + "</strong><br>" + t.errbody;
+    document.getElementById("head").hidden = true;
+    document.getElementById("sub").hidden = true;
+    document.getElementById("go").hidden = true;
+    document.getElementById("count").hidden = true;
+    document.querySelector("details").hidden = true;
+    return;
+  }
+
+  var market = pickMarket();
+  var target = reviewUrl(market, asin);
+
+  document.getElementById("head").textContent = t.head;
+  document.getElementById("sub").textContent  = t.sub;
+
+  var go = document.getElementById("go");
+  go.href = target;
+  go.textContent = t.cta.replace("%s", market);
+
+  document.getElementById("othersum").textContent = t.other;
+
+  var ul = document.getElementById("others");
+  MARKETS.forEach(function(m){
+    var li = document.createElement("li");
+    var a  = document.createElement("a");
+    a.href = reviewUrl(m.d, asin);
+    a.textContent = m.n + " (" + m.d + ")";
+    a.addEventListener("click", stop);
+    li.appendChild(a);
+    ul.appendChild(li);
+  });
+
+  // Automatische Weiterleitung — abgebrochen, sobald der Leser selbst etwas anklickt.
+  var left = 5, timer = null;
+  var cnt = document.getElementById("count");
+
+  function stop(){
+    if (timer){ clearInterval(timer); timer = null; }
+    cnt.textContent = "";
+  }
+  document.querySelector("summary").addEventListener("click", stop);
+  go.addEventListener("click", stop);
+
+  cnt.textContent = t.count.replace("%d", left);
+  timer = setInterval(function(){
+    left -= 1;
+    if (left > 0){
+      cnt.textContent = t.count.replace("%d", left);
+    } else {
+      clearInterval(timer); timer = null;
+      cnt.textContent = t.now;
+      location.replace(target);
+    }
+  }, 1000);
+})();
+</script>
+</body>
+</html>
