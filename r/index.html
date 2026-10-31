@@ -13,7 +13,8 @@
   ISBN -> ASIN steht in r/isbn_map.json. Fehlt der Eintrag noch, fuehrt die
   Seite zur Amazon-Suche nach der ISBN (findet das Buch, sobald es live ist).
   Changelog:
-    1.1  ISBN-Parameter ?i= mit Zuordnung isbn_map.json + Suchfallback
+    1.1  ISBN-Parameter ?i= mit Zuordnung isbn_map.json + Suchfallback;
+         ISBN-13 auch ueber ?a= (Interior-QR der PuzzleSuite)
     1.0  Erstversion: Zeitzonen-Weiche + Sprachfallback + manuelle Auswahl
 -->
 <style>
@@ -189,6 +190,8 @@
   var q = new URLSearchParams(location.search);
   var asin = (q.get("a") || q.get("asin") || location.hash.replace("#","") || "").trim().toUpperCase();
   var isbn = (q.get("i") || q.get("isbn") || "").replace(/[^0-9Xx]/g, "").toUpperCase();
+  // Interior-QR aus der PuzzleSuite nutzt immer ?a=; steht dort eine ISBN-13, als ISBN behandeln.
+  if (!isbn && /^97[89][0-9]{10}$/.test(asin)) { isbn = asin; asin = ""; }
 
   function fail(){
     var box = document.getElementById("app");
