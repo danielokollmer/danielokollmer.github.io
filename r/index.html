@@ -6,11 +6,14 @@
 <meta name="robots" content="noindex">
 <title>Leave a review / Rezension schreiben</title>
 <!--
-  DaKoCreatives — Review-Weiche  |  Version 1.0  |  Stand: 2026-09-15
-  Eine einzige Datei fuer ALLE Buecher. Die ASIN kommt als Query-Parameter:
-      /r/?a=B0GZPDVFBC
-  Neue Titel brauchen KEIN neues Deployment.
+  DaKoCreatives — Review-Weiche  |  Version 1.1  |  Stand: 2026-10-31
+  Eine einzige Datei fuer ALLE Buecher. Kennung als Query-Parameter:
+      /r/?a=B0GZPDVFBC        (ASIN, fuer Live-Buecher)
+      /r/?i=9798166365248     (ISBN, fuer Cover vor der ASIN-Vergabe)
+  ISBN -> ASIN steht in r/isbn_map.json. Fehlt der Eintrag noch, fuehrt die
+  Seite zur Amazon-Suche nach der ISBN (findet das Buch, sobald es live ist).
   Changelog:
+    1.1  ISBN-Parameter ?i= mit Zuordnung isbn_map.json + Suchfallback
     1.0  Erstversion: Zeitzonen-Weiche + Sprachfallback + manuelle Auswahl
 -->
 <style>
@@ -118,6 +121,8 @@
 
   var T = {
     de:{
+      pend:"Sie werden gleich zu Amazon weitergeleitet. Dort finden Sie das Buch und können über „Rezension schreiben“ Ihre Bewertung abgeben.",
+      ctas:"Buch öffnen auf %s",
       head:"Rezension schreiben",
       sub:"Sie werden gleich zu Amazon weitergeleitet, wo Sie Ihre Rezension zu diesem Buch schreiben können.",
       cta:"Jetzt bewerten auf %s",
@@ -129,6 +134,8 @@
       note:"Hinweis: Amazon verlangt für Rezensionen ein Mindestmaß an Einkäufen im jeweiligen Land."
     },
     fr:{
+      pend:"Vous allez être redirigé vers Amazon. Ouvrez le livre et utilisez « Rédiger un avis ».",
+      ctas:"Ouvrir le livre sur %s",
       head:"Laisser un avis",
       sub:"Vous allez être redirigé vers Amazon, où vous pourrez rédiger votre avis sur ce livre.",
       cta:"Donner mon avis sur %s",
@@ -140,6 +147,8 @@
       note:"Remarque : Amazon exige un montant minimum d'achats dans chaque pays avant de pouvoir publier des avis."
     },
     en:{
+      pend:"You are being taken to Amazon. Open the book there and use “Write a customer review”.",
+      ctas:"Open the book on %s",
       head:"Leave a review",
       sub:"You are being taken to Amazon, where you can write your review of this book.",
       cta:"Write a review on %s",
@@ -176,11 +185,12 @@
   var t = T[lang];
   document.documentElement.lang = lang;
 
-  // ASIN aus ?a= ODER ?asin= ODER #ASIN lesen — tolerant gegenueber Tippfehlern.
+  // Kennung lesen: ASIN (?a= / ?asin= / #ASIN) oder ISBN (?i= / ?isbn=).
   var q = new URLSearchParams(location.search);
   var asin = (q.get("a") || q.get("asin") || location.hash.replace("#","") || "").trim().toUpperCase();
+  var isbn = (q.get("i") || q.get("isbn") || "").replace(/[^0-9Xx]/g, "").toUpperCase();
 
-  if (!/^[A-Z0-9]{10}$/.test(asin)){
+  function fail(){
     var box = document.getElementById("app");
     box.hidden = false;
     box.innerHTML = "<strong>" + t.errhead + "</strong><br>" + t.errbody;
@@ -189,18 +199,40 @@
     document.getElementById("go").hidden = true;
     document.getElementById("count").hidden = true;
     document.querySelector("details").hidden = true;
-    return;
   }
 
+  function searchUrl(domain, code){
+    return "https://www." + domain + "/s?k=" + encodeURIComponent(code) + "&i=stripbooks";
+  }
+
+  var ASIN_RE = /^[A-Z0-9]{10}$/;
+  var ISBN_RE = /^(97[89][0-9]{10}|[0-9]{9}[0-9X])$/;
+
+  if (ASIN_RE.test(asin)){
+    run(function(d){ return reviewUrl(d, asin); }, false);
+  } else if (ISBN_RE.test(isbn)){
+    fetch("isbn_map.json", {cache:"no-store"})
+      .then(function(r){ return r.ok ? r.json() : {}; })
+      .catch(function(){ return {}; })
+      .then(function(m){
+        var a = String((m && m[isbn]) || "").toUpperCase();
+        if (ASIN_RE.test(a)) run(function(d){ return reviewUrl(d, a); }, false);
+        else run(function(d){ return searchUrl(d, isbn); }, true);
+      });
+  } else {
+    fail();
+  }
+
+  function run(urlFor, pending){
   var market = pickMarket();
-  var target = reviewUrl(market, asin);
+  var target = urlFor(market);
 
   document.getElementById("head").textContent = t.head;
-  document.getElementById("sub").textContent  = t.sub;
+  document.getElementById("sub").textContent  = pending ? t.pend : t.sub;
 
   var go = document.getElementById("go");
   go.href = target;
-  go.textContent = t.cta.replace("%s", market);
+  go.textContent = (pending ? t.ctas : t.cta).replace("%s", market);
 
   document.getElementById("othersum").textContent = t.other;
 
@@ -208,7 +240,7 @@
   MARKETS.forEach(function(m){
     var li = document.createElement("li");
     var a  = document.createElement("a");
-    a.href = reviewUrl(m.d, asin);
+    a.href = urlFor(m.d);
     a.textContent = m.n + " (" + m.d + ")";
     a.addEventListener("click", stop);
     li.appendChild(a);
@@ -237,6 +269,7 @@
       location.replace(target);
     }
   }, 1000);
+  }
 })();
 </script>
 </body>
